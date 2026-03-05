@@ -3,34 +3,36 @@ import 'dart:async';
 import '../../domain/models/board.dart';
 import '../../domain/models/board_member.dart';
 import '../../domain/models/board_snapshot.dart';
+import '../../domain/models/board_workflow_settings.dart';
 import '../../domain/models/column.dart';
 import '../../domain/models/work_item.dart';
 import '../../domain/models/work_item_type.dart';
+import '../../domain/policies/workflow_semantics_policy.dart';
 import 'local_board_store.dart';
 
 class InMemoryLocalBoardStore implements LocalBoardStore {
-  InMemoryLocalBoardStore() {
+  InMemoryLocalBoardStore({required String currentUserId})
+      : _currentUserId = currentUserId {
     final initialSnapshot = BoardSnapshot(
       board: Board(
         boardId: 'board-1',
         name: 'My Board',
-        ownerId: 'user-1',
+        ownerId: _currentUserId,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
+        workflowSettings: const BoardWorkflowSettings(
+          templateId: BoardWorkflowSettings.legacyTemplateId,
+        ),
       ),
       members: [
         BoardMember(
           boardId: 'board-1',
-          userId: 'user-1',
+          userId: _currentUserId,
           role: BoardRole.owner,
           joinedAt: DateTime.now(),
         ),
       ],
-      columns: const [
-        BoardColumn(columnId: 'c-todo', boardId: 'board-1', name: 'To Do', orderIndex: 0),
-        BoardColumn(columnId: 'c-doing', boardId: 'board-1', name: 'Doing', orderIndex: 1),
-        BoardColumn(columnId: 'c-done', boardId: 'board-1', name: 'Done', orderIndex: 2),
-      ],
+      columns: WorkflowSemanticsPolicy.legacyDefaultColumns('board-1'),
       items: [
         WorkItem(
           itemId: 'g-1',
@@ -106,7 +108,8 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
           itemId: 'w-1',
           boardId: 'board-1',
           parentId: 't-2',
-          title: 'Clarify type semantics in UI labels (Goal/Project/Task/Action)',
+          title:
+              'Clarify type semantics in UI labels (Goal/Project/Task/Action)',
           type: WorkItemType.action,
           columnId: 'c-done',
           completedAt: DateTime.now().subtract(const Duration(hours: 8)),
@@ -185,12 +188,14 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
     _boardOrder.add('board-1');
   }
 
+  final String _currentUserId;
   final Map<String, BoardSnapshot> _snapshots = {};
   final Map<String, StreamController<BoardSnapshot>> _controllers = {};
   final List<String> _boardOrder = [];
 
   StreamController<BoardSnapshot> _controllerFor(String boardId) {
-    return _controllers.putIfAbsent(boardId, () => StreamController<BoardSnapshot>.broadcast());
+    return _controllers.putIfAbsent(
+        boardId, () => StreamController<BoardSnapshot>.broadcast());
   }
 
   BoardSnapshot _snapshotFor(String boardId) {
@@ -214,9 +219,12 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
     final board = Board(
       boardId: boardId,
       name: name,
-      ownerId: 'user-1',
+      ownerId: _currentUserId,
       createdAt: now,
       updatedAt: now,
+      workflowSettings: const BoardWorkflowSettings(
+        templateId: BoardWorkflowSettings.legacyTemplateId,
+      ),
     );
 
     final snapshot = BoardSnapshot(
@@ -224,16 +232,12 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
       members: [
         BoardMember(
           boardId: boardId,
-          userId: 'user-1',
+          userId: _currentUserId,
           role: BoardRole.owner,
           joinedAt: now,
         ),
       ],
-      columns: [
-        BoardColumn(columnId: '$boardId-c-todo', boardId: boardId, name: 'To Do', orderIndex: 0),
-        BoardColumn(columnId: '$boardId-c-doing', boardId: boardId, name: 'Doing', orderIndex: 1),
-        BoardColumn(columnId: '$boardId-c-done', boardId: boardId, name: 'Done', orderIndex: 2),
-      ],
+      columns: WorkflowSemanticsPolicy.legacyDefaultColumns(boardId),
       items: const [],
     );
 
@@ -241,6 +245,48 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
     _boardOrder.add(boardId);
     _controllerFor(boardId).add(snapshot);
     return board;
+  }
+
+  @override
+  Future<void> upsertBoard(Board board) async {
+    final existing = _snapshots[board.boardId];
+    if (existing != null) {
+      final updated = BoardSnapshot(
+        board: board,
+        members: existing.members,
+        columns: existing.columns,
+        items: existing.items,
+      );
+      _snapshots[board.boardId] = updated;
+      _controllerFor(board.boardId).add(updated);
+      return;
+    }
+
+    final snapshot = BoardSnapshot(
+      board: board,
+      members: [
+        BoardMember(
+          boardId: board.boardId,
+          userId: board.ownerId,
+          role: BoardRole.owner,
+          joinedAt: board.createdAt,
+        ),
+      ],
+      columns: const [],
+      items: const [],
+    );
+    _snapshots[board.boardId] = snapshot;
+    if (!_boardOrder.contains(board.boardId)) {
+      _boardOrder.add(board.boardId);
+    }
+    _controllerFor(board.boardId).add(snapshot);
+  }
+
+  @override
+  Future<void> deleteBoard(String boardId) async {
+    _snapshots.remove(boardId);
+    _boardOrder.remove(boardId);
+    await _controllers.remove(boardId)?.close();
   }
 
   @override
@@ -254,14 +300,17 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
 
   @override
   Future<void> upsertColumn(BoardColumn column) async {
-    final snapshot = _snapshotFor(column.boardId);
-    final existingIndex = snapshot.columns.indexWhere((c) => c.columnId == column.columnId);
+    final normalizedColumn =
+        WorkflowSemanticsPolicy.withLegacyInference(column);
+    final snapshot = _snapshotFor(normalizedColumn.boardId);
+    final existingIndex = snapshot.columns
+        .indexWhere((c) => c.columnId == normalizedColumn.columnId);
     final updatedColumns = [...snapshot.columns];
 
     if (existingIndex >= 0) {
-      updatedColumns[existingIndex] = column;
+      updatedColumns[existingIndex] = normalizedColumn;
     } else {
-      updatedColumns.add(column);
+      updatedColumns.add(normalizedColumn);
     }
 
     final updatedSnapshot = BoardSnapshot(
@@ -270,8 +319,8 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
       columns: updatedColumns,
       items: snapshot.items,
     );
-    _snapshots[column.boardId] = updatedSnapshot;
-    _controllerFor(column.boardId).add(updatedSnapshot);
+    _snapshots[normalizedColumn.boardId] = updatedSnapshot;
+    _controllerFor(normalizedColumn.boardId).add(updatedSnapshot);
   }
 
   @override
@@ -280,16 +329,12 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
     required String columnId,
   }) async {
     final snapshot = _snapshotFor(boardId);
-    final remaining = snapshot.columns.where((c) => c.columnId != columnId).toList();
+    final remaining =
+        snapshot.columns.where((c) => c.columnId != columnId).toList();
 
     final reindexed = [
       for (var i = 0; i < remaining.length; i++)
-        BoardColumn(
-          columnId: remaining[i].columnId,
-          boardId: remaining[i].boardId,
-          name: remaining[i].name,
-          orderIndex: i,
-        ),
+        remaining[i].copyWith(orderIndex: i),
     ];
 
     final updatedSnapshot = BoardSnapshot(
@@ -323,12 +368,7 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
 
     final reindexed = [
       for (var i = 0; i < ordered.length; i++)
-        BoardColumn(
-          columnId: ordered[i].columnId,
-          boardId: ordered[i].boardId,
-          name: ordered[i].name,
-          orderIndex: i,
-        ),
+        ordered[i].copyWith(orderIndex: i),
     ];
 
     final updatedSnapshot = BoardSnapshot(
@@ -344,7 +384,8 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
   @override
   Future<void> upsertItem(WorkItem item) async {
     final snapshot = _snapshotFor(item.boardId);
-    final existingIndex = snapshot.items.indexWhere((it) => it.itemId == item.itemId);
+    final existingIndex =
+        snapshot.items.indexWhere((it) => it.itemId == item.itemId);
     final updatedItems = [...snapshot.items];
 
     if (existingIndex >= 0) {
@@ -364,9 +405,11 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
   }
 
   @override
-  Future<void> deleteItem({required String boardId, required String itemId}) async {
+  Future<void> deleteItem(
+      {required String boardId, required String itemId}) async {
     final snapshot = _snapshotFor(boardId);
-    final updatedItems = snapshot.items.where((it) => it.itemId != itemId).toList();
+    final updatedItems =
+        snapshot.items.where((it) => it.itemId != itemId).toList();
     final updatedSnapshot = BoardSnapshot(
       board: snapshot.board,
       members: snapshot.members,
@@ -380,7 +423,8 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
   @override
   Future<void> upsertMember(BoardMember member) async {
     final snapshot = _snapshotFor(member.boardId);
-    final existingIndex = snapshot.members.indexWhere((m) => m.userId == member.userId);
+    final existingIndex =
+        snapshot.members.indexWhere((m) => m.userId == member.userId);
     final updatedMembers = [...snapshot.members];
 
     if (existingIndex >= 0) {
@@ -400,9 +444,11 @@ class InMemoryLocalBoardStore implements LocalBoardStore {
   }
 
   @override
-  Future<void> deleteMember({required String boardId, required String userId}) async {
+  Future<void> deleteMember(
+      {required String boardId, required String userId}) async {
     final snapshot = _snapshotFor(boardId);
-    final updatedMembers = snapshot.members.where((m) => m.userId != userId).toList();
+    final updatedMembers =
+        snapshot.members.where((m) => m.userId != userId).toList();
     final updatedSnapshot = BoardSnapshot(
       board: snapshot.board,
       members: updatedMembers,

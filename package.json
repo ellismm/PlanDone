@@ -1,0 +1,17 @@
+{
+  "name": "plandone-firestore-rules-tests",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test:rules": "firebase emulators:exec --only firestore \"npm run test:rules:node\"",
+    "test:rules:node": "node test/firestore/firestore_rules_test.js",
+    "emulators:firestore": "firebase emulators:start --only firestore --project ${FIREBASE_PROJECT:-plandone-dev} --import=.firebase/emulator-data --export-on-exit",
+    "deploy:rules": "firebase deploy --only firestore:rules --project ${FIREBASE_PROJECT:-plandone-dev}",
+    "deploy:indexes": "firebase deploy --only firestore:indexes --project ${FIREBASE_PROJECT:-plandone-dev}",
+    "deploy:firestore": "firebase deploy --only firestore --project ${FIREBASE_PROJECT:-plandone-dev}"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.2",
+    "firebase-tools": "^13.31.2"
+  }
+}

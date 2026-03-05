@@ -1,16 +1,32 @@
+import 'dart:ffi';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plandone/src/features/board/data/local/drift/board_database.dart' hide BoardMember;
+import 'package:plandone/src/features/board/data/local/drift/board_database.dart'
+    hide BoardMember;
 import 'package:plandone/src/features/board/data/local/drift/drift_local_board_store.dart';
 import 'package:plandone/src/features/board/domain/models/board_member.dart';
-import 'package:plandone/src/features/board/domain/models/column.dart' as domain_column;
-import 'package:plandone/src/features/board/domain/models/work_item.dart' as domain;
+import 'package:plandone/src/features/board/domain/models/column.dart'
+    as domain_column;
+import 'package:plandone/src/features/board/domain/models/work_item.dart'
+    as domain;
 import 'package:plandone/src/features/board/domain/models/work_item_type.dart';
+
+bool _hasSqliteDynamicLibrary() {
+  try {
+    DynamicLibrary.open('libsqlite3.so');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+final _canRunDriftTests = _hasSqliteDynamicLibrary();
 
 void main() {
   test('drift store seeds and persists board snapshot updates', () async {
     final db = BoardDatabase.forTesting(NativeDatabase.memory());
-    final store = DriftLocalBoardStore(database: db);
+    final store = DriftLocalBoardStore(database: db, currentUserId: 'user-1');
 
     final initial = await store.getBoard('board-1');
     expect(initial.board.name, 'My Board');
@@ -43,11 +59,11 @@ void main() {
     expect(updated.items.any((i) => i.itemId == 'a-review'), isTrue);
 
     await db.close();
-  });
+  }, skip: !_canRunDriftTests);
 
   test('drift store persists board members', () async {
     final db = BoardDatabase.forTesting(NativeDatabase.memory());
-    final store = DriftLocalBoardStore(database: db);
+    final store = DriftLocalBoardStore(database: db, currentUserId: 'user-1');
 
     await store.upsertMember(
       BoardMember(
@@ -59,12 +75,35 @@ void main() {
     );
 
     final withMember = await store.getBoard('board-1');
-    expect(withMember.members.any((m) => m.userId == 'user-2' && m.role == BoardRole.member), isTrue);
+    expect(
+        withMember.members
+            .any((m) => m.userId == 'user-2' && m.role == BoardRole.member),
+        isTrue);
 
     await store.deleteMember(boardId: 'board-1', userId: 'user-2');
     final afterDelete = await store.getBoard('board-1');
     expect(afterDelete.members.any((m) => m.userId == 'user-2'), isFalse);
 
     await db.close();
-  });
+  }, skip: !_canRunDriftTests);
+
+  test('drift store seeding is safe under concurrent first access', () async {
+    final db = BoardDatabase.forTesting(NativeDatabase.memory());
+    final store = DriftLocalBoardStore(database: db, currentUserId: 'user-1');
+
+    final results = await Future.wait([
+      store.listBoards(),
+      store.watchBoard('board-1').first,
+      store.getBoard('board-1'),
+    ]);
+
+    expect((results[0] as List).isNotEmpty, isTrue);
+    expect((results[1] as dynamic).board.boardId, 'board-1');
+    expect((results[2] as dynamic).board.boardId, 'board-1');
+
+    final boards = await db.select(db.boards).get();
+    expect(boards.where((b) => b.boardId == 'board-1').length, 1);
+
+    await db.close();
+  }, skip: !_canRunDriftTests);
 }

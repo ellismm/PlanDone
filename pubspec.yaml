@@ -14,6 +14,11 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.26
   path_provider: ^2.1.4
   path: ^1.9.0
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.3
+  cloud_firestore: ^5.5.0
+  firebase_messaging: ^15.1.6
+  google_sign_in: ^6.2.2
 
 dev_dependencies:
   flutter_test:
@@ -21,6 +26,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   drift_dev: ^2.20.3
   build_runner: ^2.4.13
+  fake_cloud_firestore: ^3.1.0
 
 flutter:
   uses-material-design: true

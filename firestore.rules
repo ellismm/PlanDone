@@ -1,0 +1,225 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function boardPath(boardId) {
+      return /databases/$(database)/documents/boards/$(boardId);
+    }
+
+    function memberPath(boardId, uid) {
+      return /databases/$(database)/documents/boards/$(boardId)/members/$(uid);
+    }
+
+    function boardDoc(boardId) {
+      return get(boardPath(boardId));
+    }
+
+    function boardDocAfter(boardId) {
+      return getAfter(boardPath(boardId));
+    }
+
+    function memberDoc(boardId, uid) {
+      return get(memberPath(boardId, uid));
+    }
+
+    function boardExists(boardId) {
+      return exists(boardPath(boardId));
+    }
+
+    function boardExistsAfter(boardId) {
+      return existsAfter(boardPath(boardId));
+    }
+
+    function memberExists(boardId, uid) {
+      return exists(memberPath(boardId, uid));
+    }
+
+    function requesterMemberExists(boardId) {
+      return signedIn() && memberExists(boardId, request.auth.uid);
+    }
+
+    function requesterMember(boardId) {
+      return memberDoc(boardId, request.auth.uid).data;
+    }
+
+    function activeRequester(boardId) {
+      return requesterMemberExists(boardId) &&
+          requesterMember(boardId).joinedAtEpochMillis is int &&
+          requesterMember(boardId).joinedAtEpochMillis > 0;
+    }
+
+    function requesterRole(boardId) {
+      return requesterMember(boardId).role;
+    }
+
+    function canReadBoard(boardId) {
+      return requesterMemberExists(boardId);
+    }
+
+    function canModifyItems(boardId) {
+      return activeRequester(boardId) &&
+          requesterRole(boardId) in ['member', 'admin', 'owner'];
+    }
+
+    function canManageBoard(boardId) {
+      return activeRequester(boardId) &&
+          requesterRole(boardId) in ['admin', 'owner'];
+    }
+
+    function canManageMembers(boardId) {
+      return canManageBoard(boardId);
+    }
+
+    function validRole(role) {
+      return role in ['viewer', 'member', 'admin', 'owner'];
+    }
+
+    function validBoardData(boardId) {
+      return request.resource.data.boardId == boardId &&
+          request.resource.data.name is string &&
+          request.resource.data.ownerId is string;
+    }
+
+    function validMemberData(boardId, uid) {
+      return request.resource.data.boardId == boardId &&
+          request.resource.data.userId == uid &&
+          validRole(request.resource.data.role) &&
+          request.resource.data.joinedAtEpochMillis is int;
+    }
+
+    function validColumnData(boardId, columnId) {
+      return request.resource.data.boardId == boardId &&
+          request.resource.data.columnId == columnId &&
+          request.resource.data.name is string &&
+          request.resource.data.orderIndex is int;
+    }
+
+    function validWorkItemData(boardId, itemId) {
+      return request.resource.data.boardId == boardId &&
+          request.resource.data.itemId == itemId &&
+          request.resource.data.title is string &&
+          request.resource.data.type is string &&
+          request.resource.data.columnId is string;
+    }
+
+    function ownerId(boardId) {
+      return boardDoc(boardId).data.ownerId;
+    }
+
+    function ownerIdAfter(boardId) {
+      return boardDocAfter(boardId).data.ownerId;
+    }
+
+    function ownerRoleIsLocked(boardId, uid) {
+      return !(resource.data.role == 'owner' &&
+          (request.resource.data.role != 'owner' || uid != ownerId(boardId)));
+    }
+
+    function canBootstrapOwnerMember(boardId, uid) {
+      return signedIn() &&
+          (boardExists(boardId) || boardExistsAfter(boardId)) &&
+          (boardExists(boardId)
+              ? ownerId(boardId) == request.auth.uid
+              : (boardExistsAfter(boardId) &&
+                  ownerIdAfter(boardId) == request.auth.uid)) &&
+          uid == request.auth.uid &&
+          request.resource.data.role == 'owner';
+    }
+
+    function canAcceptOwnInvite(boardId, uid) {
+      return signedIn() &&
+          request.auth.uid == uid &&
+          memberExists(boardId, uid) &&
+          memberDoc(boardId, uid).data.joinedAtEpochMillis <= 0 &&
+          validMemberData(boardId, uid) &&
+          request.resource.data.role == memberDoc(boardId, uid).data.role &&
+          request.resource.data.joinedAtEpochMillis > 0;
+    }
+
+    function immutableBoardIdentity() {
+      return request.resource.data.boardId == resource.data.boardId &&
+          request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    function validAppliedOp(opId) {
+      return request.resource.data.operationId == opId &&
+          request.resource.data.entity in
+              ['board', 'boardMember', 'column', 'workItem'] &&
+          request.resource.data.entityId is string &&
+          request.resource.data.type is string;
+    }
+
+    function validUserDeviceData() {
+      return request.resource.data.token is string &&
+          request.resource.data.platform is string;
+    }
+
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+
+      match /devices/{deviceId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create, update: if signedIn() &&
+            request.auth.uid == uid &&
+            validUserDeviceData();
+        allow delete: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /boards/{boardId} {
+      allow read: if canReadBoard(boardId);
+
+      allow create: if signedIn() &&
+          validBoardData(boardId) &&
+          request.resource.data.ownerId == request.auth.uid;
+
+      allow update: if canManageBoard(boardId) &&
+          validBoardData(boardId) &&
+          immutableBoardIdentity();
+
+      allow delete: if canManageBoard(boardId) && requesterRole(boardId) == 'owner';
+
+      match /members/{uid} {
+        allow read: if canReadBoard(boardId) ||
+            (signedIn() && request.auth.uid == uid && memberExists(boardId, uid));
+
+        allow create: if validMemberData(boardId, uid) &&
+            (canManageMembers(boardId) || canBootstrapOwnerMember(boardId, uid));
+
+        allow update: if validMemberData(boardId, uid) &&
+            ownerRoleIsLocked(boardId, uid) &&
+            (canManageMembers(boardId) || canAcceptOwnInvite(boardId, uid));
+
+        allow delete: if canManageMembers(boardId) && uid != ownerId(boardId);
+      }
+
+      match /columns/{columnId} {
+        allow read: if canReadBoard(boardId);
+        allow create, update: if canManageBoard(boardId) &&
+            validColumnData(boardId, columnId);
+        allow delete: if canManageBoard(boardId);
+      }
+
+      match /workItems/{itemId} {
+        allow read: if canReadBoard(boardId);
+        allow create, update: if canModifyItems(boardId) &&
+            validWorkItemData(boardId, itemId);
+        allow delete: if canModifyItems(boardId);
+      }
+
+      match /_appliedOps/{opId} {
+        allow read: if canReadBoard(boardId);
+        allow create: if validAppliedOp(opId) &&
+            (canReadBoard(boardId) ||
+                (signedIn() &&
+                    boardExistsAfter(boardId) &&
+                    ownerIdAfter(boardId) == request.auth.uid));
+        allow update, delete: if false;
+      }
+    }
+  }
+}

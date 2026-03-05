@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "plandone-dev",
+    "dev": "plandone-dev",
+    "staging": "plandone-staging",
+    "prod": "plandone-prod"
+  }
+}

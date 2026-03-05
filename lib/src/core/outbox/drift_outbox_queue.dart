@@ -24,13 +24,19 @@ class DriftOutboxQueue implements OutboxQueue {
       'created_at INTEGER NOT NULL, '
       'attempt_count INTEGER NOT NULL DEFAULT 0, '
       'last_error TEXT, '
-      'next_attempt_at INTEGER'
+      'next_attempt_at INTEGER, '
+      'last_attempt_at INTEGER'
       ')',
     );
 
-    await _safeAddColumn('ALTER TABLE outbox_operations ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0');
-    await _safeAddColumn('ALTER TABLE outbox_operations ADD COLUMN last_error TEXT');
-    await _safeAddColumn('ALTER TABLE outbox_operations ADD COLUMN next_attempt_at INTEGER');
+    await _safeAddColumn(
+        'ALTER TABLE outbox_operations ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0');
+    await _safeAddColumn(
+        'ALTER TABLE outbox_operations ADD COLUMN last_error TEXT');
+    await _safeAddColumn(
+        'ALTER TABLE outbox_operations ADD COLUMN next_attempt_at INTEGER');
+    await _safeAddColumn(
+        'ALTER TABLE outbox_operations ADD COLUMN last_attempt_at INTEGER');
     _tableReady = true;
   }
 
@@ -47,8 +53,8 @@ class DriftOutboxQueue implements OutboxQueue {
     await _ensureTable();
     await _db.customStatement(
       'INSERT OR REPLACE INTO outbox_operations('
-      'id, type, entity, entity_id, payload_json, created_at, attempt_count, last_error, next_attempt_at'
-      ') VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'id, type, entity, entity_id, payload_json, created_at, attempt_count, last_error, next_attempt_at, last_attempt_at'
+      ') VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         operation.id,
         operation.type.name,
@@ -59,6 +65,7 @@ class DriftOutboxQueue implements OutboxQueue {
         operation.attemptCount,
         operation.lastError,
         operation.nextAttemptAt?.millisecondsSinceEpoch,
+        operation.lastAttemptAt?.millisecondsSinceEpoch,
       ],
     );
   }
@@ -73,6 +80,7 @@ class DriftOutboxQueue implements OutboxQueue {
     await _ensureTable();
     final rows = await _db.customSelect(
       'SELECT id, type, entity, entity_id, payload_json, created_at, attempt_count, last_error, next_attempt_at '
+      ', last_attempt_at '
       'FROM outbox_operations ORDER BY created_at ASC',
       readsFrom: const {},
     ).get();
@@ -89,13 +97,20 @@ class DriftOutboxQueue implements OutboxQueue {
         ),
         entity: data['entity'] as String,
         entityId: data['entity_id'] as String,
-        payload: (jsonDecode(payloadRaw) as Map<String, dynamic>).cast<String, Object?>(),
-        createdAt: DateTime.fromMillisecondsSinceEpoch(data['created_at'] as int),
+        payload: (jsonDecode(payloadRaw) as Map<String, dynamic>)
+            .cast<String, Object?>(),
+        createdAt:
+            DateTime.fromMillisecondsSinceEpoch(data['created_at'] as int),
         attemptCount: (data['attempt_count'] as int?) ?? 0,
         lastError: data['last_error'] as String?,
         nextAttemptAt: data['next_attempt_at'] == null
             ? null
-            : DateTime.fromMillisecondsSinceEpoch(data['next_attempt_at'] as int),
+            : DateTime.fromMillisecondsSinceEpoch(
+                data['next_attempt_at'] as int),
+        lastAttemptAt: data['last_attempt_at'] == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(
+                data['last_attempt_at'] as int),
       );
     }).toList();
   }

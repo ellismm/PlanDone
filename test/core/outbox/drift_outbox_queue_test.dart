@@ -1,8 +1,21 @@
+import 'dart:ffi';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plandone/src/core/outbox/drift_outbox_queue.dart';
 import 'package:plandone/src/core/outbox/outbox_operation.dart';
 import 'package:plandone/src/features/board/data/local/drift/board_database.dart';
+
+bool _hasSqliteDynamicLibrary() {
+  try {
+    DynamicLibrary.open('libsqlite3.so');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+final _canRunDriftTests = _hasSqliteDynamicLibrary();
 
 void main() {
   test('drift outbox queue persists enqueue/list/markProcessed', () async {
@@ -30,7 +43,7 @@ void main() {
     expect(after, isEmpty);
 
     await db.close();
-  });
+  }, skip: !_canRunDriftTests);
 
   test('drift outbox queue persists retry metadata updates', () async {
     final db = BoardDatabase.forTesting(NativeDatabase.memory());
@@ -51,6 +64,7 @@ void main() {
         attemptCount: 3,
         lastError: '503 service unavailable',
         nextAttemptAt: DateTime(2026, 1, 1, 0, 5),
+        lastAttemptAt: DateTime(2026, 1, 1, 0, 2),
       ),
     );
 
@@ -60,7 +74,8 @@ void main() {
     expect(pending.first.attemptCount, 3);
     expect(pending.first.lastError, '503 service unavailable');
     expect(pending.first.nextAttemptAt, DateTime(2026, 1, 1, 0, 5));
+    expect(pending.first.lastAttemptAt, DateTime(2026, 1, 1, 0, 2));
 
     await db.close();
-  });
+  }, skip: !_canRunDriftTests);
 }

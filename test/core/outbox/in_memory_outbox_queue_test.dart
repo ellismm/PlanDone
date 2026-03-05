@@ -51,6 +51,7 @@ void main() {
         attemptCount: 2,
         lastError: 'network timeout',
         nextAttemptAt: DateTime(2026, 1, 1, 0, 2),
+        lastAttemptAt: DateTime(2026, 1, 1, 0, 1),
       ),
     );
 
@@ -59,5 +60,6 @@ void main() {
     expect(pending.first.attemptCount, 2);
     expect(pending.first.lastError, 'network timeout');
     expect(pending.first.nextAttemptAt, DateTime(2026, 1, 1, 0, 2));
+    expect(pending.first.lastAttemptAt, DateTime(2026, 1, 1, 0, 1));
   });
 }

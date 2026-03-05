@@ -37,9 +37,32 @@ class $BoardsTable extends Boards with TableInfo<$BoardsTable, Board> {
   late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
       'updated_at', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _validationSettingsJsonMeta =
+      const VerificationMeta('validationSettingsJson');
   @override
-  List<GeneratedColumn> get $columns =>
-      [boardId, name, ownerId, createdAt, updatedAt];
+  late final GeneratedColumn<String> validationSettingsJson =
+      GeneratedColumn<String>('validation_settings_json', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('{}'));
+  static const VerificationMeta _workflowSettingsJsonMeta =
+      const VerificationMeta('workflowSettingsJson');
+  @override
+  late final GeneratedColumn<String> workflowSettingsJson =
+      GeneratedColumn<String>('workflow_settings_json', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('{}'));
+  @override
+  List<GeneratedColumn> get $columns => [
+        boardId,
+        name,
+        ownerId,
+        createdAt,
+        updatedAt,
+        validationSettingsJson,
+        workflowSettingsJson
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -80,6 +103,18 @@ class $BoardsTable extends Boards with TableInfo<$BoardsTable, Board> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('validation_settings_json')) {
+      context.handle(
+          _validationSettingsJsonMeta,
+          validationSettingsJson.isAcceptableOrUnknown(
+              data['validation_settings_json']!, _validationSettingsJsonMeta));
+    }
+    if (data.containsKey('workflow_settings_json')) {
+      context.handle(
+          _workflowSettingsJsonMeta,
+          workflowSettingsJson.isAcceptableOrUnknown(
+              data['workflow_settings_json']!, _workflowSettingsJsonMeta));
+    }
     return context;
   }
 
@@ -99,6 +134,12 @@ class $BoardsTable extends Boards with TableInfo<$BoardsTable, Board> {
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      validationSettingsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}validation_settings_json'])!,
+      workflowSettingsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}workflow_settings_json'])!,
     );
   }
 
@@ -114,12 +155,16 @@ class Board extends DataClass implements Insertable<Board> {
   final String ownerId;
   final int createdAt;
   final int updatedAt;
+  final String validationSettingsJson;
+  final String workflowSettingsJson;
   const Board(
       {required this.boardId,
       required this.name,
       required this.ownerId,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.validationSettingsJson,
+      required this.workflowSettingsJson});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -128,6 +173,8 @@ class Board extends DataClass implements Insertable<Board> {
     map['owner_id'] = Variable<String>(ownerId);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
+    map['validation_settings_json'] = Variable<String>(validationSettingsJson);
+    map['workflow_settings_json'] = Variable<String>(workflowSettingsJson);
     return map;
   }
 
@@ -138,6 +185,8 @@ class Board extends DataClass implements Insertable<Board> {
       ownerId: Value(ownerId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      validationSettingsJson: Value(validationSettingsJson),
+      workflowSettingsJson: Value(workflowSettingsJson),
     );
   }
 
@@ -150,6 +199,10 @@ class Board extends DataClass implements Insertable<Board> {
       ownerId: serializer.fromJson<String>(json['ownerId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      validationSettingsJson:
+          serializer.fromJson<String>(json['validationSettingsJson']),
+      workflowSettingsJson:
+          serializer.fromJson<String>(json['workflowSettingsJson']),
     );
   }
   @override
@@ -161,6 +214,9 @@ class Board extends DataClass implements Insertable<Board> {
       'ownerId': serializer.toJson<String>(ownerId),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
+      'validationSettingsJson':
+          serializer.toJson<String>(validationSettingsJson),
+      'workflowSettingsJson': serializer.toJson<String>(workflowSettingsJson),
     };
   }
 
@@ -169,13 +225,18 @@ class Board extends DataClass implements Insertable<Board> {
           String? name,
           String? ownerId,
           int? createdAt,
-          int? updatedAt}) =>
+          int? updatedAt,
+          String? validationSettingsJson,
+          String? workflowSettingsJson}) =>
       Board(
         boardId: boardId ?? this.boardId,
         name: name ?? this.name,
         ownerId: ownerId ?? this.ownerId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        validationSettingsJson:
+            validationSettingsJson ?? this.validationSettingsJson,
+        workflowSettingsJson: workflowSettingsJson ?? this.workflowSettingsJson,
       );
   Board copyWithCompanion(BoardsCompanion data) {
     return Board(
@@ -184,6 +245,12 @@ class Board extends DataClass implements Insertable<Board> {
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      validationSettingsJson: data.validationSettingsJson.present
+          ? data.validationSettingsJson.value
+          : this.validationSettingsJson,
+      workflowSettingsJson: data.workflowSettingsJson.present
+          ? data.workflowSettingsJson.value
+          : this.workflowSettingsJson,
     );
   }
 
@@ -194,13 +261,16 @@ class Board extends DataClass implements Insertable<Board> {
           ..write('name: $name, ')
           ..write('ownerId: $ownerId, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('validationSettingsJson: $validationSettingsJson, ')
+          ..write('workflowSettingsJson: $workflowSettingsJson')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(boardId, name, ownerId, createdAt, updatedAt);
+  int get hashCode => Object.hash(boardId, name, ownerId, createdAt, updatedAt,
+      validationSettingsJson, workflowSettingsJson);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -209,7 +279,9 @@ class Board extends DataClass implements Insertable<Board> {
           other.name == this.name &&
           other.ownerId == this.ownerId &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.validationSettingsJson == this.validationSettingsJson &&
+          other.workflowSettingsJson == this.workflowSettingsJson);
 }
 
 class BoardsCompanion extends UpdateCompanion<Board> {
@@ -218,6 +290,8 @@ class BoardsCompanion extends UpdateCompanion<Board> {
   final Value<String> ownerId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
+  final Value<String> validationSettingsJson;
+  final Value<String> workflowSettingsJson;
   final Value<int> rowid;
   const BoardsCompanion({
     this.boardId = const Value.absent(),
@@ -225,6 +299,8 @@ class BoardsCompanion extends UpdateCompanion<Board> {
     this.ownerId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.validationSettingsJson = const Value.absent(),
+    this.workflowSettingsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BoardsCompanion.insert({
@@ -233,6 +309,8 @@ class BoardsCompanion extends UpdateCompanion<Board> {
     required String ownerId,
     required int createdAt,
     required int updatedAt,
+    this.validationSettingsJson = const Value.absent(),
+    this.workflowSettingsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : boardId = Value(boardId),
         name = Value(name),
@@ -245,6 +323,8 @@ class BoardsCompanion extends UpdateCompanion<Board> {
     Expression<String>? ownerId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
+    Expression<String>? validationSettingsJson,
+    Expression<String>? workflowSettingsJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -253,6 +333,10 @@ class BoardsCompanion extends UpdateCompanion<Board> {
       if (ownerId != null) 'owner_id': ownerId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (validationSettingsJson != null)
+        'validation_settings_json': validationSettingsJson,
+      if (workflowSettingsJson != null)
+        'workflow_settings_json': workflowSettingsJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -263,6 +347,8 @@ class BoardsCompanion extends UpdateCompanion<Board> {
       Value<String>? ownerId,
       Value<int>? createdAt,
       Value<int>? updatedAt,
+      Value<String>? validationSettingsJson,
+      Value<String>? workflowSettingsJson,
       Value<int>? rowid}) {
     return BoardsCompanion(
       boardId: boardId ?? this.boardId,
@@ -270,6 +356,9 @@ class BoardsCompanion extends UpdateCompanion<Board> {
       ownerId: ownerId ?? this.ownerId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      validationSettingsJson:
+          validationSettingsJson ?? this.validationSettingsJson,
+      workflowSettingsJson: workflowSettingsJson ?? this.workflowSettingsJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -292,6 +381,14 @@ class BoardsCompanion extends UpdateCompanion<Board> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
+    if (validationSettingsJson.present) {
+      map['validation_settings_json'] =
+          Variable<String>(validationSettingsJson.value);
+    }
+    if (workflowSettingsJson.present) {
+      map['workflow_settings_json'] =
+          Variable<String>(workflowSettingsJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -306,6 +403,8 @@ class BoardsCompanion extends UpdateCompanion<Board> {
           ..write('ownerId: $ownerId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('validationSettingsJson: $validationSettingsJson, ')
+          ..write('workflowSettingsJson: $workflowSettingsJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -341,8 +440,76 @@ class $BoardColumnsTable extends BoardColumns
   late final GeneratedColumn<int> orderIndex = GeneratedColumn<int>(
       'order_index', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
   @override
-  List<GeneratedColumn> get $columns => [columnId, boardId, name, orderIndex];
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('custom'));
+  static const VerificationMeta _isDoneStateMeta =
+      const VerificationMeta('isDoneState');
+  @override
+  late final GeneratedColumn<bool> isDoneState = GeneratedColumn<bool>(
+      'is_done_state', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_done_state" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isBlockedStateMeta =
+      const VerificationMeta('isBlockedState');
+  @override
+  late final GeneratedColumn<bool> isBlockedState = GeneratedColumn<bool>(
+      'is_blocked_state', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_blocked_state" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isCancelledStateMeta =
+      const VerificationMeta('isCancelledState');
+  @override
+  late final GeneratedColumn<bool> isCancelledState = GeneratedColumn<bool>(
+      'is_cancelled_state', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_cancelled_state" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isDesignatedMeta =
+      const VerificationMeta('isDesignated');
+  @override
+  late final GeneratedColumn<bool> isDesignated = GeneratedColumn<bool>(
+      'is_designated', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_designated" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isEnabledMeta =
+      const VerificationMeta('isEnabled');
+  @override
+  late final GeneratedColumn<bool> isEnabled = GeneratedColumn<bool>(
+      'is_enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  @override
+  List<GeneratedColumn> get $columns => [
+        columnId,
+        boardId,
+        name,
+        orderIndex,
+        kind,
+        isDoneState,
+        isBlockedState,
+        isCancelledState,
+        isDesignated,
+        isEnabled
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -379,6 +546,38 @@ class $BoardColumnsTable extends BoardColumns
     } else if (isInserting) {
       context.missing(_orderIndexMeta);
     }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    }
+    if (data.containsKey('is_done_state')) {
+      context.handle(
+          _isDoneStateMeta,
+          isDoneState.isAcceptableOrUnknown(
+              data['is_done_state']!, _isDoneStateMeta));
+    }
+    if (data.containsKey('is_blocked_state')) {
+      context.handle(
+          _isBlockedStateMeta,
+          isBlockedState.isAcceptableOrUnknown(
+              data['is_blocked_state']!, _isBlockedStateMeta));
+    }
+    if (data.containsKey('is_cancelled_state')) {
+      context.handle(
+          _isCancelledStateMeta,
+          isCancelledState.isAcceptableOrUnknown(
+              data['is_cancelled_state']!, _isCancelledStateMeta));
+    }
+    if (data.containsKey('is_designated')) {
+      context.handle(
+          _isDesignatedMeta,
+          isDesignated.isAcceptableOrUnknown(
+              data['is_designated']!, _isDesignatedMeta));
+    }
+    if (data.containsKey('is_enabled')) {
+      context.handle(_isEnabledMeta,
+          isEnabled.isAcceptableOrUnknown(data['is_enabled']!, _isEnabledMeta));
+    }
     return context;
   }
 
@@ -396,6 +595,18 @@ class $BoardColumnsTable extends BoardColumns
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       orderIndex: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}order_index'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      isDoneState: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_done_state'])!,
+      isBlockedState: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_blocked_state'])!,
+      isCancelledState: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}is_cancelled_state'])!,
+      isDesignated: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_designated'])!,
+      isEnabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_enabled'])!,
     );
   }
 
@@ -410,11 +621,23 @@ class BoardColumn extends DataClass implements Insertable<BoardColumn> {
   final String boardId;
   final String name;
   final int orderIndex;
+  final String kind;
+  final bool isDoneState;
+  final bool isBlockedState;
+  final bool isCancelledState;
+  final bool isDesignated;
+  final bool isEnabled;
   const BoardColumn(
       {required this.columnId,
       required this.boardId,
       required this.name,
-      required this.orderIndex});
+      required this.orderIndex,
+      required this.kind,
+      required this.isDoneState,
+      required this.isBlockedState,
+      required this.isCancelledState,
+      required this.isDesignated,
+      required this.isEnabled});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -422,6 +645,12 @@ class BoardColumn extends DataClass implements Insertable<BoardColumn> {
     map['board_id'] = Variable<String>(boardId);
     map['name'] = Variable<String>(name);
     map['order_index'] = Variable<int>(orderIndex);
+    map['kind'] = Variable<String>(kind);
+    map['is_done_state'] = Variable<bool>(isDoneState);
+    map['is_blocked_state'] = Variable<bool>(isBlockedState);
+    map['is_cancelled_state'] = Variable<bool>(isCancelledState);
+    map['is_designated'] = Variable<bool>(isDesignated);
+    map['is_enabled'] = Variable<bool>(isEnabled);
     return map;
   }
 
@@ -431,6 +660,12 @@ class BoardColumn extends DataClass implements Insertable<BoardColumn> {
       boardId: Value(boardId),
       name: Value(name),
       orderIndex: Value(orderIndex),
+      kind: Value(kind),
+      isDoneState: Value(isDoneState),
+      isBlockedState: Value(isBlockedState),
+      isCancelledState: Value(isCancelledState),
+      isDesignated: Value(isDesignated),
+      isEnabled: Value(isEnabled),
     );
   }
 
@@ -442,6 +677,12 @@ class BoardColumn extends DataClass implements Insertable<BoardColumn> {
       boardId: serializer.fromJson<String>(json['boardId']),
       name: serializer.fromJson<String>(json['name']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      kind: serializer.fromJson<String>(json['kind']),
+      isDoneState: serializer.fromJson<bool>(json['isDoneState']),
+      isBlockedState: serializer.fromJson<bool>(json['isBlockedState']),
+      isCancelledState: serializer.fromJson<bool>(json['isCancelledState']),
+      isDesignated: serializer.fromJson<bool>(json['isDesignated']),
+      isEnabled: serializer.fromJson<bool>(json['isEnabled']),
     );
   }
   @override
@@ -452,16 +693,37 @@ class BoardColumn extends DataClass implements Insertable<BoardColumn> {
       'boardId': serializer.toJson<String>(boardId),
       'name': serializer.toJson<String>(name),
       'orderIndex': serializer.toJson<int>(orderIndex),
+      'kind': serializer.toJson<String>(kind),
+      'isDoneState': serializer.toJson<bool>(isDoneState),
+      'isBlockedState': serializer.toJson<bool>(isBlockedState),
+      'isCancelledState': serializer.toJson<bool>(isCancelledState),
+      'isDesignated': serializer.toJson<bool>(isDesignated),
+      'isEnabled': serializer.toJson<bool>(isEnabled),
     };
   }
 
   BoardColumn copyWith(
-          {String? columnId, String? boardId, String? name, int? orderIndex}) =>
+          {String? columnId,
+          String? boardId,
+          String? name,
+          int? orderIndex,
+          String? kind,
+          bool? isDoneState,
+          bool? isBlockedState,
+          bool? isCancelledState,
+          bool? isDesignated,
+          bool? isEnabled}) =>
       BoardColumn(
         columnId: columnId ?? this.columnId,
         boardId: boardId ?? this.boardId,
         name: name ?? this.name,
         orderIndex: orderIndex ?? this.orderIndex,
+        kind: kind ?? this.kind,
+        isDoneState: isDoneState ?? this.isDoneState,
+        isBlockedState: isBlockedState ?? this.isBlockedState,
+        isCancelledState: isCancelledState ?? this.isCancelledState,
+        isDesignated: isDesignated ?? this.isDesignated,
+        isEnabled: isEnabled ?? this.isEnabled,
       );
   BoardColumn copyWithCompanion(BoardColumnsCompanion data) {
     return BoardColumn(
@@ -470,6 +732,19 @@ class BoardColumn extends DataClass implements Insertable<BoardColumn> {
       name: data.name.present ? data.name.value : this.name,
       orderIndex:
           data.orderIndex.present ? data.orderIndex.value : this.orderIndex,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      isDoneState:
+          data.isDoneState.present ? data.isDoneState.value : this.isDoneState,
+      isBlockedState: data.isBlockedState.present
+          ? data.isBlockedState.value
+          : this.isBlockedState,
+      isCancelledState: data.isCancelledState.present
+          ? data.isCancelledState.value
+          : this.isCancelledState,
+      isDesignated: data.isDesignated.present
+          ? data.isDesignated.value
+          : this.isDesignated,
+      isEnabled: data.isEnabled.present ? data.isEnabled.value : this.isEnabled,
     );
   }
 
@@ -479,13 +754,20 @@ class BoardColumn extends DataClass implements Insertable<BoardColumn> {
           ..write('columnId: $columnId, ')
           ..write('boardId: $boardId, ')
           ..write('name: $name, ')
-          ..write('orderIndex: $orderIndex')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('kind: $kind, ')
+          ..write('isDoneState: $isDoneState, ')
+          ..write('isBlockedState: $isBlockedState, ')
+          ..write('isCancelledState: $isCancelledState, ')
+          ..write('isDesignated: $isDesignated, ')
+          ..write('isEnabled: $isEnabled')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(columnId, boardId, name, orderIndex);
+  int get hashCode => Object.hash(columnId, boardId, name, orderIndex, kind,
+      isDoneState, isBlockedState, isCancelledState, isDesignated, isEnabled);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -493,7 +775,13 @@ class BoardColumn extends DataClass implements Insertable<BoardColumn> {
           other.columnId == this.columnId &&
           other.boardId == this.boardId &&
           other.name == this.name &&
-          other.orderIndex == this.orderIndex);
+          other.orderIndex == this.orderIndex &&
+          other.kind == this.kind &&
+          other.isDoneState == this.isDoneState &&
+          other.isBlockedState == this.isBlockedState &&
+          other.isCancelledState == this.isCancelledState &&
+          other.isDesignated == this.isDesignated &&
+          other.isEnabled == this.isEnabled);
 }
 
 class BoardColumnsCompanion extends UpdateCompanion<BoardColumn> {
@@ -501,12 +789,24 @@ class BoardColumnsCompanion extends UpdateCompanion<BoardColumn> {
   final Value<String> boardId;
   final Value<String> name;
   final Value<int> orderIndex;
+  final Value<String> kind;
+  final Value<bool> isDoneState;
+  final Value<bool> isBlockedState;
+  final Value<bool> isCancelledState;
+  final Value<bool> isDesignated;
+  final Value<bool> isEnabled;
   final Value<int> rowid;
   const BoardColumnsCompanion({
     this.columnId = const Value.absent(),
     this.boardId = const Value.absent(),
     this.name = const Value.absent(),
     this.orderIndex = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.isDoneState = const Value.absent(),
+    this.isBlockedState = const Value.absent(),
+    this.isCancelledState = const Value.absent(),
+    this.isDesignated = const Value.absent(),
+    this.isEnabled = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BoardColumnsCompanion.insert({
@@ -514,6 +814,12 @@ class BoardColumnsCompanion extends UpdateCompanion<BoardColumn> {
     required String boardId,
     required String name,
     required int orderIndex,
+    this.kind = const Value.absent(),
+    this.isDoneState = const Value.absent(),
+    this.isBlockedState = const Value.absent(),
+    this.isCancelledState = const Value.absent(),
+    this.isDesignated = const Value.absent(),
+    this.isEnabled = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : columnId = Value(columnId),
         boardId = Value(boardId),
@@ -524,6 +830,12 @@ class BoardColumnsCompanion extends UpdateCompanion<BoardColumn> {
     Expression<String>? boardId,
     Expression<String>? name,
     Expression<int>? orderIndex,
+    Expression<String>? kind,
+    Expression<bool>? isDoneState,
+    Expression<bool>? isBlockedState,
+    Expression<bool>? isCancelledState,
+    Expression<bool>? isDesignated,
+    Expression<bool>? isEnabled,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -531,6 +843,12 @@ class BoardColumnsCompanion extends UpdateCompanion<BoardColumn> {
       if (boardId != null) 'board_id': boardId,
       if (name != null) 'name': name,
       if (orderIndex != null) 'order_index': orderIndex,
+      if (kind != null) 'kind': kind,
+      if (isDoneState != null) 'is_done_state': isDoneState,
+      if (isBlockedState != null) 'is_blocked_state': isBlockedState,
+      if (isCancelledState != null) 'is_cancelled_state': isCancelledState,
+      if (isDesignated != null) 'is_designated': isDesignated,
+      if (isEnabled != null) 'is_enabled': isEnabled,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -540,12 +858,24 @@ class BoardColumnsCompanion extends UpdateCompanion<BoardColumn> {
       Value<String>? boardId,
       Value<String>? name,
       Value<int>? orderIndex,
+      Value<String>? kind,
+      Value<bool>? isDoneState,
+      Value<bool>? isBlockedState,
+      Value<bool>? isCancelledState,
+      Value<bool>? isDesignated,
+      Value<bool>? isEnabled,
       Value<int>? rowid}) {
     return BoardColumnsCompanion(
       columnId: columnId ?? this.columnId,
       boardId: boardId ?? this.boardId,
       name: name ?? this.name,
       orderIndex: orderIndex ?? this.orderIndex,
+      kind: kind ?? this.kind,
+      isDoneState: isDoneState ?? this.isDoneState,
+      isBlockedState: isBlockedState ?? this.isBlockedState,
+      isCancelledState: isCancelledState ?? this.isCancelledState,
+      isDesignated: isDesignated ?? this.isDesignated,
+      isEnabled: isEnabled ?? this.isEnabled,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -565,6 +895,24 @@ class BoardColumnsCompanion extends UpdateCompanion<BoardColumn> {
     if (orderIndex.present) {
       map['order_index'] = Variable<int>(orderIndex.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (isDoneState.present) {
+      map['is_done_state'] = Variable<bool>(isDoneState.value);
+    }
+    if (isBlockedState.present) {
+      map['is_blocked_state'] = Variable<bool>(isBlockedState.value);
+    }
+    if (isCancelledState.present) {
+      map['is_cancelled_state'] = Variable<bool>(isCancelledState.value);
+    }
+    if (isDesignated.present) {
+      map['is_designated'] = Variable<bool>(isDesignated.value);
+    }
+    if (isEnabled.present) {
+      map['is_enabled'] = Variable<bool>(isEnabled.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -578,6 +926,12 @@ class BoardColumnsCompanion extends UpdateCompanion<BoardColumn> {
           ..write('boardId: $boardId, ')
           ..write('name: $name, ')
           ..write('orderIndex: $orderIndex, ')
+          ..write('kind: $kind, ')
+          ..write('isDoneState: $isDoneState, ')
+          ..write('isBlockedState: $isBlockedState, ')
+          ..write('isCancelledState: $isCancelledState, ')
+          ..write('isDesignated: $isDesignated, ')
+          ..write('isEnabled: $isEnabled, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -612,8 +966,17 @@ class $BoardMembersTable extends BoardMembers
   late final GeneratedColumn<int> joinedAt = GeneratedColumn<int>(
       'joined_at', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _joinedAtEpochMillisMeta =
+      const VerificationMeta('joinedAtEpochMillis');
   @override
-  List<GeneratedColumn> get $columns => [boardId, userId, role, joinedAt];
+  late final GeneratedColumn<int> joinedAtEpochMillis = GeneratedColumn<int>(
+      'joined_at_epoch_millis', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [boardId, userId, role, joinedAt, joinedAtEpochMillis];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -648,6 +1011,12 @@ class $BoardMembersTable extends BoardMembers
     } else if (isInserting) {
       context.missing(_joinedAtMeta);
     }
+    if (data.containsKey('joined_at_epoch_millis')) {
+      context.handle(
+          _joinedAtEpochMillisMeta,
+          joinedAtEpochMillis.isAcceptableOrUnknown(
+              data['joined_at_epoch_millis']!, _joinedAtEpochMillisMeta));
+    }
     return context;
   }
 
@@ -665,6 +1034,8 @@ class $BoardMembersTable extends BoardMembers
           .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
       joinedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}joined_at'])!,
+      joinedAtEpochMillis: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}joined_at_epoch_millis'])!,
     );
   }
 
@@ -679,11 +1050,13 @@ class BoardMember extends DataClass implements Insertable<BoardMember> {
   final String userId;
   final String role;
   final int joinedAt;
+  final int joinedAtEpochMillis;
   const BoardMember(
       {required this.boardId,
       required this.userId,
       required this.role,
-      required this.joinedAt});
+      required this.joinedAt,
+      required this.joinedAtEpochMillis});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -691,6 +1064,7 @@ class BoardMember extends DataClass implements Insertable<BoardMember> {
     map['user_id'] = Variable<String>(userId);
     map['role'] = Variable<String>(role);
     map['joined_at'] = Variable<int>(joinedAt);
+    map['joined_at_epoch_millis'] = Variable<int>(joinedAtEpochMillis);
     return map;
   }
 
@@ -700,6 +1074,7 @@ class BoardMember extends DataClass implements Insertable<BoardMember> {
       userId: Value(userId),
       role: Value(role),
       joinedAt: Value(joinedAt),
+      joinedAtEpochMillis: Value(joinedAtEpochMillis),
     );
   }
 
@@ -711,6 +1086,8 @@ class BoardMember extends DataClass implements Insertable<BoardMember> {
       userId: serializer.fromJson<String>(json['userId']),
       role: serializer.fromJson<String>(json['role']),
       joinedAt: serializer.fromJson<int>(json['joinedAt']),
+      joinedAtEpochMillis:
+          serializer.fromJson<int>(json['joinedAtEpochMillis']),
     );
   }
   @override
@@ -721,16 +1098,22 @@ class BoardMember extends DataClass implements Insertable<BoardMember> {
       'userId': serializer.toJson<String>(userId),
       'role': serializer.toJson<String>(role),
       'joinedAt': serializer.toJson<int>(joinedAt),
+      'joinedAtEpochMillis': serializer.toJson<int>(joinedAtEpochMillis),
     };
   }
 
   BoardMember copyWith(
-          {String? boardId, String? userId, String? role, int? joinedAt}) =>
+          {String? boardId,
+          String? userId,
+          String? role,
+          int? joinedAt,
+          int? joinedAtEpochMillis}) =>
       BoardMember(
         boardId: boardId ?? this.boardId,
         userId: userId ?? this.userId,
         role: role ?? this.role,
         joinedAt: joinedAt ?? this.joinedAt,
+        joinedAtEpochMillis: joinedAtEpochMillis ?? this.joinedAtEpochMillis,
       );
   BoardMember copyWithCompanion(BoardMembersCompanion data) {
     return BoardMember(
@@ -738,6 +1121,9 @@ class BoardMember extends DataClass implements Insertable<BoardMember> {
       userId: data.userId.present ? data.userId.value : this.userId,
       role: data.role.present ? data.role.value : this.role,
       joinedAt: data.joinedAt.present ? data.joinedAt.value : this.joinedAt,
+      joinedAtEpochMillis: data.joinedAtEpochMillis.present
+          ? data.joinedAtEpochMillis.value
+          : this.joinedAtEpochMillis,
     );
   }
 
@@ -747,13 +1133,15 @@ class BoardMember extends DataClass implements Insertable<BoardMember> {
           ..write('boardId: $boardId, ')
           ..write('userId: $userId, ')
           ..write('role: $role, ')
-          ..write('joinedAt: $joinedAt')
+          ..write('joinedAt: $joinedAt, ')
+          ..write('joinedAtEpochMillis: $joinedAtEpochMillis')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(boardId, userId, role, joinedAt);
+  int get hashCode =>
+      Object.hash(boardId, userId, role, joinedAt, joinedAtEpochMillis);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -761,7 +1149,8 @@ class BoardMember extends DataClass implements Insertable<BoardMember> {
           other.boardId == this.boardId &&
           other.userId == this.userId &&
           other.role == this.role &&
-          other.joinedAt == this.joinedAt);
+          other.joinedAt == this.joinedAt &&
+          other.joinedAtEpochMillis == this.joinedAtEpochMillis);
 }
 
 class BoardMembersCompanion extends UpdateCompanion<BoardMember> {
@@ -769,12 +1158,14 @@ class BoardMembersCompanion extends UpdateCompanion<BoardMember> {
   final Value<String> userId;
   final Value<String> role;
   final Value<int> joinedAt;
+  final Value<int> joinedAtEpochMillis;
   final Value<int> rowid;
   const BoardMembersCompanion({
     this.boardId = const Value.absent(),
     this.userId = const Value.absent(),
     this.role = const Value.absent(),
     this.joinedAt = const Value.absent(),
+    this.joinedAtEpochMillis = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BoardMembersCompanion.insert({
@@ -782,6 +1173,7 @@ class BoardMembersCompanion extends UpdateCompanion<BoardMember> {
     required String userId,
     required String role,
     required int joinedAt,
+    this.joinedAtEpochMillis = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : boardId = Value(boardId),
         userId = Value(userId),
@@ -792,6 +1184,7 @@ class BoardMembersCompanion extends UpdateCompanion<BoardMember> {
     Expression<String>? userId,
     Expression<String>? role,
     Expression<int>? joinedAt,
+    Expression<int>? joinedAtEpochMillis,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -799,6 +1192,8 @@ class BoardMembersCompanion extends UpdateCompanion<BoardMember> {
       if (userId != null) 'user_id': userId,
       if (role != null) 'role': role,
       if (joinedAt != null) 'joined_at': joinedAt,
+      if (joinedAtEpochMillis != null)
+        'joined_at_epoch_millis': joinedAtEpochMillis,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -808,12 +1203,14 @@ class BoardMembersCompanion extends UpdateCompanion<BoardMember> {
       Value<String>? userId,
       Value<String>? role,
       Value<int>? joinedAt,
+      Value<int>? joinedAtEpochMillis,
       Value<int>? rowid}) {
     return BoardMembersCompanion(
       boardId: boardId ?? this.boardId,
       userId: userId ?? this.userId,
       role: role ?? this.role,
       joinedAt: joinedAt ?? this.joinedAt,
+      joinedAtEpochMillis: joinedAtEpochMillis ?? this.joinedAtEpochMillis,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -833,6 +1230,9 @@ class BoardMembersCompanion extends UpdateCompanion<BoardMember> {
     if (joinedAt.present) {
       map['joined_at'] = Variable<int>(joinedAt.value);
     }
+    if (joinedAtEpochMillis.present) {
+      map['joined_at_epoch_millis'] = Variable<int>(joinedAtEpochMillis.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -846,6 +1246,7 @@ class BoardMembersCompanion extends UpdateCompanion<BoardMember> {
           ..write('userId: $userId, ')
           ..write('role: $role, ')
           ..write('joinedAt: $joinedAt, ')
+          ..write('joinedAtEpochMillis: $joinedAtEpochMillis, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -911,6 +1312,12 @@ class $WorkItemsTable extends WorkItems
   late final GeneratedColumn<int> startAt = GeneratedColumn<int>(
       'start_at', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _targetEndAtMeta =
+      const VerificationMeta('targetEndAt');
+  @override
+  late final GeneratedColumn<int> targetEndAt = GeneratedColumn<int>(
+      'target_end_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _dueAtMeta = const VerificationMeta('dueAt');
   @override
   late final GeneratedColumn<int> dueAt = GeneratedColumn<int>(
@@ -921,6 +1328,18 @@ class $WorkItemsTable extends WorkItems
   @override
   late final GeneratedColumn<int> completedAt = GeneratedColumn<int>(
       'completed_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _estimatedEffortMinutesMeta =
+      const VerificationMeta('estimatedEffortMinutes');
+  @override
+  late final GeneratedColumn<int> estimatedEffortMinutes = GeneratedColumn<int>(
+      'estimated_effort_minutes', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _actualEffortMinutesMeta =
+      const VerificationMeta('actualEffortMinutes');
+  @override
+  late final GeneratedColumn<int> actualEffortMinutes = GeneratedColumn<int>(
+      'actual_effort_minutes', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _tagsJsonMeta =
       const VerificationMeta('tagsJson');
@@ -939,6 +1358,16 @@ class $WorkItemsTable extends WorkItems
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("archived" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isInboxMeta =
+      const VerificationMeta('isInbox');
+  @override
+  late final GeneratedColumn<bool> isInbox = GeneratedColumn<bool>(
+      'is_inbox', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_inbox" IN (0, 1))'),
       defaultValue: const Constant(false));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
@@ -963,10 +1392,14 @@ class $WorkItemsTable extends WorkItems
         description,
         assigneeIdsJson,
         startAt,
+        targetEndAt,
         dueAt,
         completedAt,
+        estimatedEffortMinutes,
+        actualEffortMinutes,
         tagsJson,
         archived,
+        isInbox,
         createdAt,
         updatedAt
       ];
@@ -1030,6 +1463,12 @@ class $WorkItemsTable extends WorkItems
       context.handle(_startAtMeta,
           startAt.isAcceptableOrUnknown(data['start_at']!, _startAtMeta));
     }
+    if (data.containsKey('target_end_at')) {
+      context.handle(
+          _targetEndAtMeta,
+          targetEndAt.isAcceptableOrUnknown(
+              data['target_end_at']!, _targetEndAtMeta));
+    }
     if (data.containsKey('due_at')) {
       context.handle(
           _dueAtMeta, dueAt.isAcceptableOrUnknown(data['due_at']!, _dueAtMeta));
@@ -1040,6 +1479,18 @@ class $WorkItemsTable extends WorkItems
           completedAt.isAcceptableOrUnknown(
               data['completed_at']!, _completedAtMeta));
     }
+    if (data.containsKey('estimated_effort_minutes')) {
+      context.handle(
+          _estimatedEffortMinutesMeta,
+          estimatedEffortMinutes.isAcceptableOrUnknown(
+              data['estimated_effort_minutes']!, _estimatedEffortMinutesMeta));
+    }
+    if (data.containsKey('actual_effort_minutes')) {
+      context.handle(
+          _actualEffortMinutesMeta,
+          actualEffortMinutes.isAcceptableOrUnknown(
+              data['actual_effort_minutes']!, _actualEffortMinutesMeta));
+    }
     if (data.containsKey('tags_json')) {
       context.handle(_tagsJsonMeta,
           tagsJson.isAcceptableOrUnknown(data['tags_json']!, _tagsJsonMeta));
@@ -1047,6 +1498,10 @@ class $WorkItemsTable extends WorkItems
     if (data.containsKey('archived')) {
       context.handle(_archivedMeta,
           archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta));
+    }
+    if (data.containsKey('is_inbox')) {
+      context.handle(_isInboxMeta,
+          isInbox.isAcceptableOrUnknown(data['is_inbox']!, _isInboxMeta));
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -1087,14 +1542,22 @@ class $WorkItemsTable extends WorkItems
           DriftSqlType.string, data['${effectivePrefix}assignee_ids_json'])!,
       startAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}start_at']),
+      targetEndAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}target_end_at']),
       dueAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}due_at']),
       completedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}completed_at']),
+      estimatedEffortMinutes: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}estimated_effort_minutes']),
+      actualEffortMinutes: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}actual_effort_minutes']),
       tagsJson: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}tags_json'])!,
       archived: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}archived'])!,
+      isInbox: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_inbox'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -1118,10 +1581,14 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
   final String? description;
   final String assigneeIdsJson;
   final int? startAt;
+  final int? targetEndAt;
   final int? dueAt;
   final int? completedAt;
+  final int? estimatedEffortMinutes;
+  final int? actualEffortMinutes;
   final String tagsJson;
   final bool archived;
+  final bool isInbox;
   final int createdAt;
   final int updatedAt;
   const WorkItem(
@@ -1134,10 +1601,14 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       this.description,
       required this.assigneeIdsJson,
       this.startAt,
+      this.targetEndAt,
       this.dueAt,
       this.completedAt,
+      this.estimatedEffortMinutes,
+      this.actualEffortMinutes,
       required this.tagsJson,
       required this.archived,
+      required this.isInbox,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -1158,14 +1629,24 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
     if (!nullToAbsent || startAt != null) {
       map['start_at'] = Variable<int>(startAt);
     }
+    if (!nullToAbsent || targetEndAt != null) {
+      map['target_end_at'] = Variable<int>(targetEndAt);
+    }
     if (!nullToAbsent || dueAt != null) {
       map['due_at'] = Variable<int>(dueAt);
     }
     if (!nullToAbsent || completedAt != null) {
       map['completed_at'] = Variable<int>(completedAt);
     }
+    if (!nullToAbsent || estimatedEffortMinutes != null) {
+      map['estimated_effort_minutes'] = Variable<int>(estimatedEffortMinutes);
+    }
+    if (!nullToAbsent || actualEffortMinutes != null) {
+      map['actual_effort_minutes'] = Variable<int>(actualEffortMinutes);
+    }
     map['tags_json'] = Variable<String>(tagsJson);
     map['archived'] = Variable<bool>(archived);
+    map['is_inbox'] = Variable<bool>(isInbox);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -1188,13 +1669,23 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       startAt: startAt == null && nullToAbsent
           ? const Value.absent()
           : Value(startAt),
+      targetEndAt: targetEndAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetEndAt),
       dueAt:
           dueAt == null && nullToAbsent ? const Value.absent() : Value(dueAt),
       completedAt: completedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(completedAt),
+      estimatedEffortMinutes: estimatedEffortMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(estimatedEffortMinutes),
+      actualEffortMinutes: actualEffortMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actualEffortMinutes),
       tagsJson: Value(tagsJson),
       archived: Value(archived),
+      isInbox: Value(isInbox),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1213,10 +1704,16 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       description: serializer.fromJson<String?>(json['description']),
       assigneeIdsJson: serializer.fromJson<String>(json['assigneeIdsJson']),
       startAt: serializer.fromJson<int?>(json['startAt']),
+      targetEndAt: serializer.fromJson<int?>(json['targetEndAt']),
       dueAt: serializer.fromJson<int?>(json['dueAt']),
       completedAt: serializer.fromJson<int?>(json['completedAt']),
+      estimatedEffortMinutes:
+          serializer.fromJson<int?>(json['estimatedEffortMinutes']),
+      actualEffortMinutes:
+          serializer.fromJson<int?>(json['actualEffortMinutes']),
       tagsJson: serializer.fromJson<String>(json['tagsJson']),
       archived: serializer.fromJson<bool>(json['archived']),
+      isInbox: serializer.fromJson<bool>(json['isInbox']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -1234,10 +1731,14 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       'description': serializer.toJson<String?>(description),
       'assigneeIdsJson': serializer.toJson<String>(assigneeIdsJson),
       'startAt': serializer.toJson<int?>(startAt),
+      'targetEndAt': serializer.toJson<int?>(targetEndAt),
       'dueAt': serializer.toJson<int?>(dueAt),
       'completedAt': serializer.toJson<int?>(completedAt),
+      'estimatedEffortMinutes': serializer.toJson<int?>(estimatedEffortMinutes),
+      'actualEffortMinutes': serializer.toJson<int?>(actualEffortMinutes),
       'tagsJson': serializer.toJson<String>(tagsJson),
       'archived': serializer.toJson<bool>(archived),
+      'isInbox': serializer.toJson<bool>(isInbox),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -1253,10 +1754,14 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
           Value<String?> description = const Value.absent(),
           String? assigneeIdsJson,
           Value<int?> startAt = const Value.absent(),
+          Value<int?> targetEndAt = const Value.absent(),
           Value<int?> dueAt = const Value.absent(),
           Value<int?> completedAt = const Value.absent(),
+          Value<int?> estimatedEffortMinutes = const Value.absent(),
+          Value<int?> actualEffortMinutes = const Value.absent(),
           String? tagsJson,
           bool? archived,
+          bool? isInbox,
           int? createdAt,
           int? updatedAt}) =>
       WorkItem(
@@ -1269,10 +1774,18 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
         description: description.present ? description.value : this.description,
         assigneeIdsJson: assigneeIdsJson ?? this.assigneeIdsJson,
         startAt: startAt.present ? startAt.value : this.startAt,
+        targetEndAt: targetEndAt.present ? targetEndAt.value : this.targetEndAt,
         dueAt: dueAt.present ? dueAt.value : this.dueAt,
         completedAt: completedAt.present ? completedAt.value : this.completedAt,
+        estimatedEffortMinutes: estimatedEffortMinutes.present
+            ? estimatedEffortMinutes.value
+            : this.estimatedEffortMinutes,
+        actualEffortMinutes: actualEffortMinutes.present
+            ? actualEffortMinutes.value
+            : this.actualEffortMinutes,
         tagsJson: tagsJson ?? this.tagsJson,
         archived: archived ?? this.archived,
+        isInbox: isInbox ?? this.isInbox,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -1290,11 +1803,20 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
           ? data.assigneeIdsJson.value
           : this.assigneeIdsJson,
       startAt: data.startAt.present ? data.startAt.value : this.startAt,
+      targetEndAt:
+          data.targetEndAt.present ? data.targetEndAt.value : this.targetEndAt,
       dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
       completedAt:
           data.completedAt.present ? data.completedAt.value : this.completedAt,
+      estimatedEffortMinutes: data.estimatedEffortMinutes.present
+          ? data.estimatedEffortMinutes.value
+          : this.estimatedEffortMinutes,
+      actualEffortMinutes: data.actualEffortMinutes.present
+          ? data.actualEffortMinutes.value
+          : this.actualEffortMinutes,
       tagsJson: data.tagsJson.present ? data.tagsJson.value : this.tagsJson,
       archived: data.archived.present ? data.archived.value : this.archived,
+      isInbox: data.isInbox.present ? data.isInbox.value : this.isInbox,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1312,10 +1834,14 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
           ..write('description: $description, ')
           ..write('assigneeIdsJson: $assigneeIdsJson, ')
           ..write('startAt: $startAt, ')
+          ..write('targetEndAt: $targetEndAt, ')
           ..write('dueAt: $dueAt, ')
           ..write('completedAt: $completedAt, ')
+          ..write('estimatedEffortMinutes: $estimatedEffortMinutes, ')
+          ..write('actualEffortMinutes: $actualEffortMinutes, ')
           ..write('tagsJson: $tagsJson, ')
           ..write('archived: $archived, ')
+          ..write('isInbox: $isInbox, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1333,10 +1859,14 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       description,
       assigneeIdsJson,
       startAt,
+      targetEndAt,
       dueAt,
       completedAt,
+      estimatedEffortMinutes,
+      actualEffortMinutes,
       tagsJson,
       archived,
+      isInbox,
       createdAt,
       updatedAt);
   @override
@@ -1352,10 +1882,14 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
           other.description == this.description &&
           other.assigneeIdsJson == this.assigneeIdsJson &&
           other.startAt == this.startAt &&
+          other.targetEndAt == this.targetEndAt &&
           other.dueAt == this.dueAt &&
           other.completedAt == this.completedAt &&
+          other.estimatedEffortMinutes == this.estimatedEffortMinutes &&
+          other.actualEffortMinutes == this.actualEffortMinutes &&
           other.tagsJson == this.tagsJson &&
           other.archived == this.archived &&
+          other.isInbox == this.isInbox &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1370,10 +1904,14 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
   final Value<String?> description;
   final Value<String> assigneeIdsJson;
   final Value<int?> startAt;
+  final Value<int?> targetEndAt;
   final Value<int?> dueAt;
   final Value<int?> completedAt;
+  final Value<int?> estimatedEffortMinutes;
+  final Value<int?> actualEffortMinutes;
   final Value<String> tagsJson;
   final Value<bool> archived;
+  final Value<bool> isInbox;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   final Value<int> rowid;
@@ -1387,10 +1925,14 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
     this.description = const Value.absent(),
     this.assigneeIdsJson = const Value.absent(),
     this.startAt = const Value.absent(),
+    this.targetEndAt = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.completedAt = const Value.absent(),
+    this.estimatedEffortMinutes = const Value.absent(),
+    this.actualEffortMinutes = const Value.absent(),
     this.tagsJson = const Value.absent(),
     this.archived = const Value.absent(),
+    this.isInbox = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1405,10 +1947,14 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
     this.description = const Value.absent(),
     this.assigneeIdsJson = const Value.absent(),
     this.startAt = const Value.absent(),
+    this.targetEndAt = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.completedAt = const Value.absent(),
+    this.estimatedEffortMinutes = const Value.absent(),
+    this.actualEffortMinutes = const Value.absent(),
     this.tagsJson = const Value.absent(),
     this.archived = const Value.absent(),
+    this.isInbox = const Value.absent(),
     required int createdAt,
     required int updatedAt,
     this.rowid = const Value.absent(),
@@ -1429,10 +1975,14 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
     Expression<String>? description,
     Expression<String>? assigneeIdsJson,
     Expression<int>? startAt,
+    Expression<int>? targetEndAt,
     Expression<int>? dueAt,
     Expression<int>? completedAt,
+    Expression<int>? estimatedEffortMinutes,
+    Expression<int>? actualEffortMinutes,
     Expression<String>? tagsJson,
     Expression<bool>? archived,
+    Expression<bool>? isInbox,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
     Expression<int>? rowid,
@@ -1447,10 +1997,16 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
       if (description != null) 'description': description,
       if (assigneeIdsJson != null) 'assignee_ids_json': assigneeIdsJson,
       if (startAt != null) 'start_at': startAt,
+      if (targetEndAt != null) 'target_end_at': targetEndAt,
       if (dueAt != null) 'due_at': dueAt,
       if (completedAt != null) 'completed_at': completedAt,
+      if (estimatedEffortMinutes != null)
+        'estimated_effort_minutes': estimatedEffortMinutes,
+      if (actualEffortMinutes != null)
+        'actual_effort_minutes': actualEffortMinutes,
       if (tagsJson != null) 'tags_json': tagsJson,
       if (archived != null) 'archived': archived,
+      if (isInbox != null) 'is_inbox': isInbox,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1467,10 +2023,14 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
       Value<String?>? description,
       Value<String>? assigneeIdsJson,
       Value<int?>? startAt,
+      Value<int?>? targetEndAt,
       Value<int?>? dueAt,
       Value<int?>? completedAt,
+      Value<int?>? estimatedEffortMinutes,
+      Value<int?>? actualEffortMinutes,
       Value<String>? tagsJson,
       Value<bool>? archived,
+      Value<bool>? isInbox,
       Value<int>? createdAt,
       Value<int>? updatedAt,
       Value<int>? rowid}) {
@@ -1484,10 +2044,15 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
       description: description ?? this.description,
       assigneeIdsJson: assigneeIdsJson ?? this.assigneeIdsJson,
       startAt: startAt ?? this.startAt,
+      targetEndAt: targetEndAt ?? this.targetEndAt,
       dueAt: dueAt ?? this.dueAt,
       completedAt: completedAt ?? this.completedAt,
+      estimatedEffortMinutes:
+          estimatedEffortMinutes ?? this.estimatedEffortMinutes,
+      actualEffortMinutes: actualEffortMinutes ?? this.actualEffortMinutes,
       tagsJson: tagsJson ?? this.tagsJson,
       archived: archived ?? this.archived,
+      isInbox: isInbox ?? this.isInbox,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1524,17 +2089,30 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
     if (startAt.present) {
       map['start_at'] = Variable<int>(startAt.value);
     }
+    if (targetEndAt.present) {
+      map['target_end_at'] = Variable<int>(targetEndAt.value);
+    }
     if (dueAt.present) {
       map['due_at'] = Variable<int>(dueAt.value);
     }
     if (completedAt.present) {
       map['completed_at'] = Variable<int>(completedAt.value);
     }
+    if (estimatedEffortMinutes.present) {
+      map['estimated_effort_minutes'] =
+          Variable<int>(estimatedEffortMinutes.value);
+    }
+    if (actualEffortMinutes.present) {
+      map['actual_effort_minutes'] = Variable<int>(actualEffortMinutes.value);
+    }
     if (tagsJson.present) {
       map['tags_json'] = Variable<String>(tagsJson.value);
     }
     if (archived.present) {
       map['archived'] = Variable<bool>(archived.value);
+    }
+    if (isInbox.present) {
+      map['is_inbox'] = Variable<bool>(isInbox.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
@@ -1560,10 +2138,14 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
           ..write('description: $description, ')
           ..write('assigneeIdsJson: $assigneeIdsJson, ')
           ..write('startAt: $startAt, ')
+          ..write('targetEndAt: $targetEndAt, ')
           ..write('dueAt: $dueAt, ')
           ..write('completedAt: $completedAt, ')
+          ..write('estimatedEffortMinutes: $estimatedEffortMinutes, ')
+          ..write('actualEffortMinutes: $actualEffortMinutes, ')
           ..write('tagsJson: $tagsJson, ')
           ..write('archived: $archived, ')
+          ..write('isInbox: $isInbox, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -1593,6 +2175,8 @@ typedef $$BoardsTableCreateCompanionBuilder = BoardsCompanion Function({
   required String ownerId,
   required int createdAt,
   required int updatedAt,
+  Value<String> validationSettingsJson,
+  Value<String> workflowSettingsJson,
   Value<int> rowid,
 });
 typedef $$BoardsTableUpdateCompanionBuilder = BoardsCompanion Function({
@@ -1601,6 +2185,8 @@ typedef $$BoardsTableUpdateCompanionBuilder = BoardsCompanion Function({
   Value<String> ownerId,
   Value<int> createdAt,
   Value<int> updatedAt,
+  Value<String> validationSettingsJson,
+  Value<String> workflowSettingsJson,
   Value<int> rowid,
 });
 
@@ -1627,6 +2213,14 @@ class $$BoardsTableFilterComposer
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get validationSettingsJson => $composableBuilder(
+      column: $table.validationSettingsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get workflowSettingsJson => $composableBuilder(
+      column: $table.workflowSettingsJson,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$BoardsTableOrderingComposer
@@ -1652,6 +2246,14 @@ class $$BoardsTableOrderingComposer
 
   ColumnOrderings<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get validationSettingsJson => $composableBuilder(
+      column: $table.validationSettingsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get workflowSettingsJson => $composableBuilder(
+      column: $table.workflowSettingsJson,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$BoardsTableAnnotationComposer
@@ -1677,6 +2279,12 @@ class $$BoardsTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get validationSettingsJson => $composableBuilder(
+      column: $table.validationSettingsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get workflowSettingsJson => $composableBuilder(
+      column: $table.workflowSettingsJson, builder: (column) => column);
 }
 
 class $$BoardsTableTableManager extends RootTableManager<
@@ -1707,6 +2315,8 @@ class $$BoardsTableTableManager extends RootTableManager<
             Value<String> ownerId = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
+            Value<String> validationSettingsJson = const Value.absent(),
+            Value<String> workflowSettingsJson = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               BoardsCompanion(
@@ -1715,6 +2325,8 @@ class $$BoardsTableTableManager extends RootTableManager<
             ownerId: ownerId,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            validationSettingsJson: validationSettingsJson,
+            workflowSettingsJson: workflowSettingsJson,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -1723,6 +2335,8 @@ class $$BoardsTableTableManager extends RootTableManager<
             required String ownerId,
             required int createdAt,
             required int updatedAt,
+            Value<String> validationSettingsJson = const Value.absent(),
+            Value<String> workflowSettingsJson = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               BoardsCompanion.insert(
@@ -1731,6 +2345,8 @@ class $$BoardsTableTableManager extends RootTableManager<
             ownerId: ownerId,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            validationSettingsJson: validationSettingsJson,
+            workflowSettingsJson: workflowSettingsJson,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -1758,6 +2374,12 @@ typedef $$BoardColumnsTableCreateCompanionBuilder = BoardColumnsCompanion
   required String boardId,
   required String name,
   required int orderIndex,
+  Value<String> kind,
+  Value<bool> isDoneState,
+  Value<bool> isBlockedState,
+  Value<bool> isCancelledState,
+  Value<bool> isDesignated,
+  Value<bool> isEnabled,
   Value<int> rowid,
 });
 typedef $$BoardColumnsTableUpdateCompanionBuilder = BoardColumnsCompanion
@@ -1766,6 +2388,12 @@ typedef $$BoardColumnsTableUpdateCompanionBuilder = BoardColumnsCompanion
   Value<String> boardId,
   Value<String> name,
   Value<int> orderIndex,
+  Value<String> kind,
+  Value<bool> isDoneState,
+  Value<bool> isBlockedState,
+  Value<bool> isCancelledState,
+  Value<bool> isDesignated,
+  Value<bool> isEnabled,
   Value<int> rowid,
 });
 
@@ -1789,6 +2417,26 @@ class $$BoardColumnsTableFilterComposer
 
   ColumnFilters<int> get orderIndex => $composableBuilder(
       column: $table.orderIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDoneState => $composableBuilder(
+      column: $table.isDoneState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isBlockedState => $composableBuilder(
+      column: $table.isBlockedState,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isCancelledState => $composableBuilder(
+      column: $table.isCancelledState,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDesignated => $composableBuilder(
+      column: $table.isDesignated, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isEnabled => $composableBuilder(
+      column: $table.isEnabled, builder: (column) => ColumnFilters(column));
 }
 
 class $$BoardColumnsTableOrderingComposer
@@ -1811,6 +2459,27 @@ class $$BoardColumnsTableOrderingComposer
 
   ColumnOrderings<int> get orderIndex => $composableBuilder(
       column: $table.orderIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isDoneState => $composableBuilder(
+      column: $table.isDoneState, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isBlockedState => $composableBuilder(
+      column: $table.isBlockedState,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isCancelledState => $composableBuilder(
+      column: $table.isCancelledState,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isDesignated => $composableBuilder(
+      column: $table.isDesignated,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isEnabled => $composableBuilder(
+      column: $table.isEnabled, builder: (column) => ColumnOrderings(column));
 }
 
 class $$BoardColumnsTableAnnotationComposer
@@ -1833,6 +2502,24 @@ class $$BoardColumnsTableAnnotationComposer
 
   GeneratedColumn<int> get orderIndex => $composableBuilder(
       column: $table.orderIndex, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDoneState => $composableBuilder(
+      column: $table.isDoneState, builder: (column) => column);
+
+  GeneratedColumn<bool> get isBlockedState => $composableBuilder(
+      column: $table.isBlockedState, builder: (column) => column);
+
+  GeneratedColumn<bool> get isCancelledState => $composableBuilder(
+      column: $table.isCancelledState, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDesignated => $composableBuilder(
+      column: $table.isDesignated, builder: (column) => column);
+
+  GeneratedColumn<bool> get isEnabled =>
+      $composableBuilder(column: $table.isEnabled, builder: (column) => column);
 }
 
 class $$BoardColumnsTableTableManager extends RootTableManager<
@@ -1865,6 +2552,12 @@ class $$BoardColumnsTableTableManager extends RootTableManager<
             Value<String> boardId = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<int> orderIndex = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<bool> isDoneState = const Value.absent(),
+            Value<bool> isBlockedState = const Value.absent(),
+            Value<bool> isCancelledState = const Value.absent(),
+            Value<bool> isDesignated = const Value.absent(),
+            Value<bool> isEnabled = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               BoardColumnsCompanion(
@@ -1872,6 +2565,12 @@ class $$BoardColumnsTableTableManager extends RootTableManager<
             boardId: boardId,
             name: name,
             orderIndex: orderIndex,
+            kind: kind,
+            isDoneState: isDoneState,
+            isBlockedState: isBlockedState,
+            isCancelledState: isCancelledState,
+            isDesignated: isDesignated,
+            isEnabled: isEnabled,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -1879,6 +2578,12 @@ class $$BoardColumnsTableTableManager extends RootTableManager<
             required String boardId,
             required String name,
             required int orderIndex,
+            Value<String> kind = const Value.absent(),
+            Value<bool> isDoneState = const Value.absent(),
+            Value<bool> isBlockedState = const Value.absent(),
+            Value<bool> isCancelledState = const Value.absent(),
+            Value<bool> isDesignated = const Value.absent(),
+            Value<bool> isEnabled = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               BoardColumnsCompanion.insert(
@@ -1886,6 +2591,12 @@ class $$BoardColumnsTableTableManager extends RootTableManager<
             boardId: boardId,
             name: name,
             orderIndex: orderIndex,
+            kind: kind,
+            isDoneState: isDoneState,
+            isBlockedState: isBlockedState,
+            isCancelledState: isCancelledState,
+            isDesignated: isDesignated,
+            isEnabled: isEnabled,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -1916,6 +2627,7 @@ typedef $$BoardMembersTableCreateCompanionBuilder = BoardMembersCompanion
   required String userId,
   required String role,
   required int joinedAt,
+  Value<int> joinedAtEpochMillis,
   Value<int> rowid,
 });
 typedef $$BoardMembersTableUpdateCompanionBuilder = BoardMembersCompanion
@@ -1924,6 +2636,7 @@ typedef $$BoardMembersTableUpdateCompanionBuilder = BoardMembersCompanion
   Value<String> userId,
   Value<String> role,
   Value<int> joinedAt,
+  Value<int> joinedAtEpochMillis,
   Value<int> rowid,
 });
 
@@ -1947,6 +2660,10 @@ class $$BoardMembersTableFilterComposer
 
   ColumnFilters<int> get joinedAt => $composableBuilder(
       column: $table.joinedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get joinedAtEpochMillis => $composableBuilder(
+      column: $table.joinedAtEpochMillis,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$BoardMembersTableOrderingComposer
@@ -1969,6 +2686,10 @@ class $$BoardMembersTableOrderingComposer
 
   ColumnOrderings<int> get joinedAt => $composableBuilder(
       column: $table.joinedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get joinedAtEpochMillis => $composableBuilder(
+      column: $table.joinedAtEpochMillis,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$BoardMembersTableAnnotationComposer
@@ -1991,6 +2712,9 @@ class $$BoardMembersTableAnnotationComposer
 
   GeneratedColumn<int> get joinedAt =>
       $composableBuilder(column: $table.joinedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get joinedAtEpochMillis => $composableBuilder(
+      column: $table.joinedAtEpochMillis, builder: (column) => column);
 }
 
 class $$BoardMembersTableTableManager extends RootTableManager<
@@ -2023,6 +2747,7 @@ class $$BoardMembersTableTableManager extends RootTableManager<
             Value<String> userId = const Value.absent(),
             Value<String> role = const Value.absent(),
             Value<int> joinedAt = const Value.absent(),
+            Value<int> joinedAtEpochMillis = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               BoardMembersCompanion(
@@ -2030,6 +2755,7 @@ class $$BoardMembersTableTableManager extends RootTableManager<
             userId: userId,
             role: role,
             joinedAt: joinedAt,
+            joinedAtEpochMillis: joinedAtEpochMillis,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -2037,6 +2763,7 @@ class $$BoardMembersTableTableManager extends RootTableManager<
             required String userId,
             required String role,
             required int joinedAt,
+            Value<int> joinedAtEpochMillis = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               BoardMembersCompanion.insert(
@@ -2044,6 +2771,7 @@ class $$BoardMembersTableTableManager extends RootTableManager<
             userId: userId,
             role: role,
             joinedAt: joinedAt,
+            joinedAtEpochMillis: joinedAtEpochMillis,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -2078,10 +2806,14 @@ typedef $$WorkItemsTableCreateCompanionBuilder = WorkItemsCompanion Function({
   Value<String?> description,
   Value<String> assigneeIdsJson,
   Value<int?> startAt,
+  Value<int?> targetEndAt,
   Value<int?> dueAt,
   Value<int?> completedAt,
+  Value<int?> estimatedEffortMinutes,
+  Value<int?> actualEffortMinutes,
   Value<String> tagsJson,
   Value<bool> archived,
+  Value<bool> isInbox,
   required int createdAt,
   required int updatedAt,
   Value<int> rowid,
@@ -2096,10 +2828,14 @@ typedef $$WorkItemsTableUpdateCompanionBuilder = WorkItemsCompanion Function({
   Value<String?> description,
   Value<String> assigneeIdsJson,
   Value<int?> startAt,
+  Value<int?> targetEndAt,
   Value<int?> dueAt,
   Value<int?> completedAt,
+  Value<int?> estimatedEffortMinutes,
+  Value<int?> actualEffortMinutes,
   Value<String> tagsJson,
   Value<bool> archived,
+  Value<bool> isInbox,
   Value<int> createdAt,
   Value<int> updatedAt,
   Value<int> rowid,
@@ -2142,17 +2878,31 @@ class $$WorkItemsTableFilterComposer
   ColumnFilters<int> get startAt => $composableBuilder(
       column: $table.startAt, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<int> get targetEndAt => $composableBuilder(
+      column: $table.targetEndAt, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get dueAt => $composableBuilder(
       column: $table.dueAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get completedAt => $composableBuilder(
       column: $table.completedAt, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<int> get estimatedEffortMinutes => $composableBuilder(
+      column: $table.estimatedEffortMinutes,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get actualEffortMinutes => $composableBuilder(
+      column: $table.actualEffortMinutes,
+      builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get tagsJson => $composableBuilder(
       column: $table.tagsJson, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get archived => $composableBuilder(
       column: $table.archived, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isInbox => $composableBuilder(
+      column: $table.isInbox, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -2198,17 +2948,31 @@ class $$WorkItemsTableOrderingComposer
   ColumnOrderings<int> get startAt => $composableBuilder(
       column: $table.startAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get targetEndAt => $composableBuilder(
+      column: $table.targetEndAt, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get dueAt => $composableBuilder(
       column: $table.dueAt, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get completedAt => $composableBuilder(
       column: $table.completedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get estimatedEffortMinutes => $composableBuilder(
+      column: $table.estimatedEffortMinutes,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get actualEffortMinutes => $composableBuilder(
+      column: $table.actualEffortMinutes,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get tagsJson => $composableBuilder(
       column: $table.tagsJson, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get archived => $composableBuilder(
       column: $table.archived, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isInbox => $composableBuilder(
+      column: $table.isInbox, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
@@ -2253,17 +3017,29 @@ class $$WorkItemsTableAnnotationComposer
   GeneratedColumn<int> get startAt =>
       $composableBuilder(column: $table.startAt, builder: (column) => column);
 
+  GeneratedColumn<int> get targetEndAt => $composableBuilder(
+      column: $table.targetEndAt, builder: (column) => column);
+
   GeneratedColumn<int> get dueAt =>
       $composableBuilder(column: $table.dueAt, builder: (column) => column);
 
   GeneratedColumn<int> get completedAt => $composableBuilder(
       column: $table.completedAt, builder: (column) => column);
 
+  GeneratedColumn<int> get estimatedEffortMinutes => $composableBuilder(
+      column: $table.estimatedEffortMinutes, builder: (column) => column);
+
+  GeneratedColumn<int> get actualEffortMinutes => $composableBuilder(
+      column: $table.actualEffortMinutes, builder: (column) => column);
+
   GeneratedColumn<String> get tagsJson =>
       $composableBuilder(column: $table.tagsJson, builder: (column) => column);
 
   GeneratedColumn<bool> get archived =>
       $composableBuilder(column: $table.archived, builder: (column) => column);
+
+  GeneratedColumn<bool> get isInbox =>
+      $composableBuilder(column: $table.isInbox, builder: (column) => column);
 
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -2304,10 +3080,14 @@ class $$WorkItemsTableTableManager extends RootTableManager<
             Value<String?> description = const Value.absent(),
             Value<String> assigneeIdsJson = const Value.absent(),
             Value<int?> startAt = const Value.absent(),
+            Value<int?> targetEndAt = const Value.absent(),
             Value<int?> dueAt = const Value.absent(),
             Value<int?> completedAt = const Value.absent(),
+            Value<int?> estimatedEffortMinutes = const Value.absent(),
+            Value<int?> actualEffortMinutes = const Value.absent(),
             Value<String> tagsJson = const Value.absent(),
             Value<bool> archived = const Value.absent(),
+            Value<bool> isInbox = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -2322,10 +3102,14 @@ class $$WorkItemsTableTableManager extends RootTableManager<
             description: description,
             assigneeIdsJson: assigneeIdsJson,
             startAt: startAt,
+            targetEndAt: targetEndAt,
             dueAt: dueAt,
             completedAt: completedAt,
+            estimatedEffortMinutes: estimatedEffortMinutes,
+            actualEffortMinutes: actualEffortMinutes,
             tagsJson: tagsJson,
             archived: archived,
+            isInbox: isInbox,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -2340,10 +3124,14 @@ class $$WorkItemsTableTableManager extends RootTableManager<
             Value<String?> description = const Value.absent(),
             Value<String> assigneeIdsJson = const Value.absent(),
             Value<int?> startAt = const Value.absent(),
+            Value<int?> targetEndAt = const Value.absent(),
             Value<int?> dueAt = const Value.absent(),
             Value<int?> completedAt = const Value.absent(),
+            Value<int?> estimatedEffortMinutes = const Value.absent(),
+            Value<int?> actualEffortMinutes = const Value.absent(),
             Value<String> tagsJson = const Value.absent(),
             Value<bool> archived = const Value.absent(),
+            Value<bool> isInbox = const Value.absent(),
             required int createdAt,
             required int updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -2358,10 +3146,14 @@ class $$WorkItemsTableTableManager extends RootTableManager<
             description: description,
             assigneeIdsJson: assigneeIdsJson,
             startAt: startAt,
+            targetEndAt: targetEndAt,
             dueAt: dueAt,
             completedAt: completedAt,
+            estimatedEffortMinutes: estimatedEffortMinutes,
+            actualEffortMinutes: actualEffortMinutes,
             tagsJson: tagsJson,
             archived: archived,
+            isInbox: isInbox,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

@@ -7,6 +7,8 @@ enum OutboxOperationType {
 }
 
 class OutboxOperation {
+  static const int currentPayloadVersion = 1;
+
   const OutboxOperation({
     required this.id,
     required this.type,
@@ -17,6 +19,7 @@ class OutboxOperation {
     this.attemptCount = 0,
     this.lastError,
     this.nextAttemptAt,
+    this.lastAttemptAt,
   });
 
   final String id;
@@ -28,6 +31,7 @@ class OutboxOperation {
   final int attemptCount;
   final String? lastError;
   final DateTime? nextAttemptAt;
+  final DateTime? lastAttemptAt;
 
   OutboxOperation copyWith({
     int? attemptCount,
@@ -35,6 +39,8 @@ class OutboxOperation {
     bool clearLastError = false,
     DateTime? nextAttemptAt,
     bool clearNextAttemptAt = false,
+    DateTime? lastAttemptAt,
+    bool clearLastAttemptAt = false,
   }) {
     return OutboxOperation(
       id: id,
@@ -45,7 +51,10 @@ class OutboxOperation {
       createdAt: createdAt,
       attemptCount: attemptCount ?? this.attemptCount,
       lastError: clearLastError ? null : (lastError ?? this.lastError),
-      nextAttemptAt: clearNextAttemptAt ? null : (nextAttemptAt ?? this.nextAttemptAt),
+      nextAttemptAt:
+          clearNextAttemptAt ? null : (nextAttemptAt ?? this.nextAttemptAt),
+      lastAttemptAt:
+          clearLastAttemptAt ? null : (lastAttemptAt ?? this.lastAttemptAt),
     );
   }
 }

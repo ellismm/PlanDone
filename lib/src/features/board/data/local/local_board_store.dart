@@ -7,6 +7,8 @@ import '../../domain/models/work_item.dart';
 abstract class LocalBoardStore {
   Future<List<Board>> listBoards();
   Future<Board> createBoard(String name);
+  Future<void> upsertBoard(Board board);
+  Future<void> deleteBoard(String boardId);
   Stream<BoardSnapshot> watchBoard(String boardId);
   Future<BoardSnapshot> getBoard(String boardId);
   Future<void> upsertColumn(BoardColumn column);

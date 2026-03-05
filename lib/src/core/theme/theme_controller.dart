@@ -1,18 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../runtime/runtime_flags.dart';
 import '../../features/board/presentation/board_controller.dart';
 import 'plan_done_theme.dart';
 import 'theme_settings_repository.dart';
 
-final themeSettingsRepositoryProvider = Provider<ThemeSettingsRepository>((ref) {
-  const useDrift = bool.fromEnvironment('USE_DRIFT_LOCAL_STORE', defaultValue: false);
-  if (useDrift) {
+final themeSettingsRepositoryProvider =
+    Provider<ThemeSettingsRepository>((ref) {
+  if (!useInMemoryLocalStore) {
     return DriftThemeSettingsRepository(ref.watch(boardDatabaseProvider));
   }
   return InMemoryThemeSettingsRepository();
 });
 
-final themeControllerProvider = AsyncNotifierProvider<ThemeController, PlanDoneThemeKey>(
+final themeControllerProvider =
+    AsyncNotifierProvider<ThemeController, PlanDoneThemeKey>(
   ThemeController.new,
 );
 
