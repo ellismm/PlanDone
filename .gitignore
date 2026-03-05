@@ -67,3 +67,21 @@ app.*.map.json
 **/Flutter/ephemeral/
 **/windows/flutter/ephemeral/
 **/linux/flutter/ephemeral/
+
+# Node tooling (Firestore rules tests)
+node_modules/
+.firebase/
+
+# Firebase local project mapping and emulator/debug logs
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
+
+# Local database artifacts
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
