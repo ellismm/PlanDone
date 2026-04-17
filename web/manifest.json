@@ -1,11 +1,11 @@
 {
-    "name": "plandone",
-    "short_name": "plandone",
+    "name": "PlanDone",
+    "short_name": "PlanDone",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F4F4F4",
+    "theme_color": "#14C7B3",
+    "description": "PlanDone is a local-first planner for goals, projects, tasks, and actions.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

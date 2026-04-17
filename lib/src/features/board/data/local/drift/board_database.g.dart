@@ -1280,6 +1280,14 @@ class $WorkItemsTable extends WorkItems
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
       'type', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<double> sortOrder = GeneratedColumn<double>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   static const VerificationMeta _parentIdMeta =
       const VerificationMeta('parentId');
   @override
@@ -1387,6 +1395,7 @@ class $WorkItemsTable extends WorkItems
         boardId,
         title,
         type,
+        sortOrder,
         parentId,
         columnId,
         description,
@@ -1436,6 +1445,10 @@ class $WorkItemsTable extends WorkItems
           _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
     } else if (isInserting) {
       context.missing(_typeMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
     if (data.containsKey('parent_id')) {
       context.handle(_parentIdMeta,
@@ -1532,6 +1545,8 @@ class $WorkItemsTable extends WorkItems
           .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
       type: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}sort_order'])!,
       parentId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}parent_id']),
       columnId: attachedDatabase.typeMapping
@@ -1576,6 +1591,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
   final String boardId;
   final String title;
   final String type;
+  final double sortOrder;
   final String? parentId;
   final String columnId;
   final String? description;
@@ -1596,6 +1612,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       required this.boardId,
       required this.title,
       required this.type,
+      required this.sortOrder,
       this.parentId,
       required this.columnId,
       this.description,
@@ -1618,6 +1635,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
     map['board_id'] = Variable<String>(boardId);
     map['title'] = Variable<String>(title);
     map['type'] = Variable<String>(type);
+    map['sort_order'] = Variable<double>(sortOrder);
     if (!nullToAbsent || parentId != null) {
       map['parent_id'] = Variable<String>(parentId);
     }
@@ -1658,6 +1676,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       boardId: Value(boardId),
       title: Value(title),
       type: Value(type),
+      sortOrder: Value(sortOrder),
       parentId: parentId == null && nullToAbsent
           ? const Value.absent()
           : Value(parentId),
@@ -1699,6 +1718,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       boardId: serializer.fromJson<String>(json['boardId']),
       title: serializer.fromJson<String>(json['title']),
       type: serializer.fromJson<String>(json['type']),
+      sortOrder: serializer.fromJson<double>(json['sortOrder']),
       parentId: serializer.fromJson<String?>(json['parentId']),
       columnId: serializer.fromJson<String>(json['columnId']),
       description: serializer.fromJson<String?>(json['description']),
@@ -1726,6 +1746,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       'boardId': serializer.toJson<String>(boardId),
       'title': serializer.toJson<String>(title),
       'type': serializer.toJson<String>(type),
+      'sortOrder': serializer.toJson<double>(sortOrder),
       'parentId': serializer.toJson<String?>(parentId),
       'columnId': serializer.toJson<String>(columnId),
       'description': serializer.toJson<String?>(description),
@@ -1749,6 +1770,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
           String? boardId,
           String? title,
           String? type,
+          double? sortOrder,
           Value<String?> parentId = const Value.absent(),
           String? columnId,
           Value<String?> description = const Value.absent(),
@@ -1769,6 +1791,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
         boardId: boardId ?? this.boardId,
         title: title ?? this.title,
         type: type ?? this.type,
+        sortOrder: sortOrder ?? this.sortOrder,
         parentId: parentId.present ? parentId.value : this.parentId,
         columnId: columnId ?? this.columnId,
         description: description.present ? description.value : this.description,
@@ -1795,6 +1818,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       boardId: data.boardId.present ? data.boardId.value : this.boardId,
       title: data.title.present ? data.title.value : this.title,
       type: data.type.present ? data.type.value : this.type,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
       columnId: data.columnId.present ? data.columnId.value : this.columnId,
       description:
@@ -1829,6 +1853,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
           ..write('boardId: $boardId, ')
           ..write('title: $title, ')
           ..write('type: $type, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('parentId: $parentId, ')
           ..write('columnId: $columnId, ')
           ..write('description: $description, ')
@@ -1854,6 +1879,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
       boardId,
       title,
       type,
+      sortOrder,
       parentId,
       columnId,
       description,
@@ -1877,6 +1903,7 @@ class WorkItem extends DataClass implements Insertable<WorkItem> {
           other.boardId == this.boardId &&
           other.title == this.title &&
           other.type == this.type &&
+          other.sortOrder == this.sortOrder &&
           other.parentId == this.parentId &&
           other.columnId == this.columnId &&
           other.description == this.description &&
@@ -1899,6 +1926,7 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
   final Value<String> boardId;
   final Value<String> title;
   final Value<String> type;
+  final Value<double> sortOrder;
   final Value<String?> parentId;
   final Value<String> columnId;
   final Value<String?> description;
@@ -1920,6 +1948,7 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
     this.boardId = const Value.absent(),
     this.title = const Value.absent(),
     this.type = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.parentId = const Value.absent(),
     this.columnId = const Value.absent(),
     this.description = const Value.absent(),
@@ -1942,6 +1971,7 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
     required String boardId,
     required String title,
     required String type,
+    this.sortOrder = const Value.absent(),
     this.parentId = const Value.absent(),
     required String columnId,
     this.description = const Value.absent(),
@@ -1970,6 +2000,7 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
     Expression<String>? boardId,
     Expression<String>? title,
     Expression<String>? type,
+    Expression<double>? sortOrder,
     Expression<String>? parentId,
     Expression<String>? columnId,
     Expression<String>? description,
@@ -1992,6 +2023,7 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
       if (boardId != null) 'board_id': boardId,
       if (title != null) 'title': title,
       if (type != null) 'type': type,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (parentId != null) 'parent_id': parentId,
       if (columnId != null) 'column_id': columnId,
       if (description != null) 'description': description,
@@ -2018,6 +2050,7 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
       Value<String>? boardId,
       Value<String>? title,
       Value<String>? type,
+      Value<double>? sortOrder,
       Value<String?>? parentId,
       Value<String>? columnId,
       Value<String?>? description,
@@ -2039,6 +2072,7 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
       boardId: boardId ?? this.boardId,
       title: title ?? this.title,
       type: type ?? this.type,
+      sortOrder: sortOrder ?? this.sortOrder,
       parentId: parentId ?? this.parentId,
       columnId: columnId ?? this.columnId,
       description: description ?? this.description,
@@ -2073,6 +2107,9 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<double>(sortOrder.value);
     }
     if (parentId.present) {
       map['parent_id'] = Variable<String>(parentId.value);
@@ -2133,6 +2170,7 @@ class WorkItemsCompanion extends UpdateCompanion<WorkItem> {
           ..write('boardId: $boardId, ')
           ..write('title: $title, ')
           ..write('type: $type, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('parentId: $parentId, ')
           ..write('columnId: $columnId, ')
           ..write('description: $description, ')
@@ -2801,6 +2839,7 @@ typedef $$WorkItemsTableCreateCompanionBuilder = WorkItemsCompanion Function({
   required String boardId,
   required String title,
   required String type,
+  Value<double> sortOrder,
   Value<String?> parentId,
   required String columnId,
   Value<String?> description,
@@ -2823,6 +2862,7 @@ typedef $$WorkItemsTableUpdateCompanionBuilder = WorkItemsCompanion Function({
   Value<String> boardId,
   Value<String> title,
   Value<String> type,
+  Value<double> sortOrder,
   Value<String?> parentId,
   Value<String> columnId,
   Value<String?> description,
@@ -2861,6 +2901,9 @@ class $$WorkItemsTableFilterComposer
 
   ColumnFilters<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get parentId => $composableBuilder(
       column: $table.parentId, builder: (column) => ColumnFilters(column));
@@ -2932,6 +2975,9 @@ class $$WorkItemsTableOrderingComposer
   ColumnOrderings<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get parentId => $composableBuilder(
       column: $table.parentId, builder: (column) => ColumnOrderings(column));
 
@@ -3001,6 +3047,9 @@ class $$WorkItemsTableAnnotationComposer
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<double> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
   GeneratedColumn<String> get parentId =>
       $composableBuilder(column: $table.parentId, builder: (column) => column);
@@ -3075,6 +3124,7 @@ class $$WorkItemsTableTableManager extends RootTableManager<
             Value<String> boardId = const Value.absent(),
             Value<String> title = const Value.absent(),
             Value<String> type = const Value.absent(),
+            Value<double> sortOrder = const Value.absent(),
             Value<String?> parentId = const Value.absent(),
             Value<String> columnId = const Value.absent(),
             Value<String?> description = const Value.absent(),
@@ -3097,6 +3147,7 @@ class $$WorkItemsTableTableManager extends RootTableManager<
             boardId: boardId,
             title: title,
             type: type,
+            sortOrder: sortOrder,
             parentId: parentId,
             columnId: columnId,
             description: description,
@@ -3119,6 +3170,7 @@ class $$WorkItemsTableTableManager extends RootTableManager<
             required String boardId,
             required String title,
             required String type,
+            Value<double> sortOrder = const Value.absent(),
             Value<String?> parentId = const Value.absent(),
             required String columnId,
             Value<String?> description = const Value.absent(),
@@ -3141,6 +3193,7 @@ class $$WorkItemsTableTableManager extends RootTableManager<
             boardId: boardId,
             title: title,
             type: type,
+            sortOrder: sortOrder,
             parentId: parentId,
             columnId: columnId,
             description: description,

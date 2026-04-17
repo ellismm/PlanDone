@@ -102,6 +102,24 @@ void main() {
     await hydrator.stop();
   });
 
+  test('missing remote board does not delete a newly created local board',
+      () async {
+    final firestore = FakeFirebaseFirestore();
+    final localStore = InMemoryLocalBoardStore(currentUserId: 'user-local');
+    final localBoard = await localStore.createBoard('Local only board');
+    final hydrator =
+        FirestoreBoardHydrator(firestore: firestore, localStore: localStore);
+
+    await hydrator.startForBoard(localBoard.boardId);
+    await _waitForHydration();
+
+    final snapshot = await localStore.getBoard(localBoard.boardId);
+    expect(snapshot.board.name, 'Local only board');
+    expect(snapshot.columns, isNotEmpty);
+
+    await hydrator.stop();
+  });
+
   test('reflects collaborator-origin updates and deletes', () async {
     final firestore = FakeFirebaseFirestore();
     final localStore = InMemoryLocalBoardStore(currentUserId: 'user-local');

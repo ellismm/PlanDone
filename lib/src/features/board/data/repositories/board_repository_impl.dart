@@ -17,9 +17,11 @@ import '../../domain/policies/workflow_semantics_policy.dart';
 import '../../domain/repositories/board_repository.dart';
 import '../../domain/repositories/work_item_activity_repository.dart';
 import '../local/local_board_store.dart';
-import 'work_item_activity_repository_impl.dart';
+import 'in_memory/work_item_activity_repository_in_memory.dart';
 
 class BoardRepositoryImpl implements BoardRepository {
+  static const double _itemSortOrderStep = 1024;
+
   BoardRepositoryImpl({
     required LocalBoardStore localStore,
     required OutboxQueue outboxQueue,
@@ -149,6 +151,7 @@ class BoardRepositoryImpl implements BoardRepository {
       'itemId': item.itemId,
       'title': item.title,
       'type': item.type.name,
+      'sortOrder': item.sortOrder,
       'parentId': item.parentId,
       'columnId': item.columnId,
       'toColumnId': item.columnId,
@@ -167,6 +170,80 @@ class BoardRepositoryImpl implements BoardRepository {
       'createdAt': item.createdAt.toIso8601String(),
       'updatedAt': item.updatedAt.toIso8601String(),
     };
+  }
+
+  int _compareItemSortOrder(WorkItem a, WorkItem b) {
+    final bySortOrder = a.sortOrder.compareTo(b.sortOrder);
+    if (bySortOrder != 0) return bySortOrder;
+    final byUpdated = b.updatedAt.compareTo(a.updatedAt);
+    if (byUpdated != 0) return byUpdated;
+    return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+  }
+
+  double _nextItemSortOrder(Iterable<WorkItem> items) {
+    if (items.isEmpty) return _itemSortOrderStep;
+    final currentMax = items
+        .map((item) => item.sortOrder)
+        .reduce((value, element) => value > element ? value : element);
+    return currentMax + _itemSortOrderStep;
+  }
+
+  double? _betweenSortOrder({
+    WorkItem? beforeItem,
+    WorkItem? afterItem,
+  }) {
+    if (beforeItem == null && afterItem == null) {
+      return _itemSortOrderStep;
+    }
+    if (beforeItem == null) {
+      return afterItem!.sortOrder - _itemSortOrderStep;
+    }
+    if (afterItem == null) {
+      return beforeItem.sortOrder + _itemSortOrderStep;
+    }
+    final gap = afterItem.sortOrder - beforeItem.sortOrder;
+    if (gap.abs() < 0.001) {
+      return null;
+    }
+    return beforeItem.sortOrder + (gap / 2);
+  }
+
+  int _insertionIndex({
+    required List<WorkItem> orderedItems,
+    String? beforeItemId,
+    String? afterItemId,
+  }) {
+    if (afterItemId != null) {
+      final afterIndex =
+          orderedItems.indexWhere((item) => item.itemId == afterItemId);
+      if (afterIndex >= 0) return afterIndex;
+    }
+    if (beforeItemId != null) {
+      final beforeIndex =
+          orderedItems.indexWhere((item) => item.itemId == beforeItemId);
+      if (beforeIndex >= 0) return beforeIndex + 1;
+    }
+    return orderedItems.length;
+  }
+
+  List<WorkItem> _normalizedItemOrder({
+    required List<WorkItem> items,
+    required WorkItem movedItem,
+    String? beforeItemId,
+    String? afterItemId,
+  }) {
+    final ordered = [...items]..sort(_compareItemSortOrder);
+    ordered.removeWhere((item) => item.itemId == movedItem.itemId);
+    final insertIndex = _insertionIndex(
+      orderedItems: ordered,
+      beforeItemId: beforeItemId,
+      afterItemId: afterItemId,
+    );
+    ordered.insert(insertIndex.clamp(0, ordered.length), movedItem);
+    return [
+      for (var index = 0; index < ordered.length; index++)
+        ordered[index].copyWith(sortOrder: index * _itemSortOrderStep)
+    ];
   }
 
   String? _doneColumnId(BoardSnapshot snapshot) {
@@ -207,15 +284,50 @@ class BoardRepositoryImpl implements BoardRepository {
     required DateTime? base,
     required DateTime completedAt,
     required int intervalDays,
+    required WorkItemRecurrenceMissedWindowPolicy missedWindowPolicy,
   }) {
     if (base == null) return null;
-    var next = base.add(Duration(days: intervalDays));
+    final next = base.add(Duration(days: intervalDays));
+    return switch (missedWindowPolicy) {
+      WorkItemRecurrenceMissedWindowPolicy.singleStep => next,
+      WorkItemRecurrenceMissedWindowPolicy.manualCatchUp =>
+        next.isAfter(completedAt) ? next : null,
+      WorkItemRecurrenceMissedWindowPolicy.nextEligible =>
+        _advanceToNextEligibleDate(
+          initialNext: next,
+          completedAt: completedAt,
+          intervalDays: intervalDays,
+        ),
+    };
+  }
+
+  DateTime _advanceToNextEligibleDate({
+    required DateTime initialNext,
+    required DateTime completedAt,
+    required int intervalDays,
+  }) {
+    var next = initialNext;
     var guard = 0;
     while (!next.isAfter(completedAt) && guard < 2048) {
       next = next.add(Duration(days: intervalDays));
       guard++;
     }
     return next;
+  }
+
+  bool _hasMissedRecurringWindow({
+    required WorkItem item,
+    required DateTime completedAt,
+    required int intervalDays,
+  }) {
+    bool missed(DateTime? base) {
+      if (base == null) return false;
+      return !base.add(Duration(days: intervalDays)).isAfter(completedAt);
+    }
+
+    return missed(item.startAt) ||
+        missed(item.targetEndAt) ||
+        missed(item.dueAt);
   }
 
   Future<void> _maybeGenerateRecurringInstance({
@@ -256,6 +368,15 @@ class BoardRepositoryImpl implements BoardRepository {
 
     final completedAt = after.completedAt ?? now;
     final intervalDays = recurrence.intervalDays;
+    if (recurrence.missedWindowPolicy ==
+            WorkItemRecurrenceMissedWindowPolicy.manualCatchUp &&
+        _hasMissedRecurringWindow(
+          item: after,
+          completedAt: completedAt,
+          intervalDays: intervalDays,
+        )) {
+      return;
+    }
     final targetColumnId = _defaultRecurringColumnId(
       snapshot: latestSnapshot,
       fallbackColumnId: after.columnId,
@@ -270,6 +391,7 @@ class BoardRepositoryImpl implements BoardRepository {
       boardId: boardId,
       title: after.title,
       type: after.type,
+      sortOrder: _nextItemSortOrder(latestSnapshot.items),
       parentId: after.parentId,
       columnId: targetColumnId,
       description: after.description,
@@ -278,16 +400,19 @@ class BoardRepositoryImpl implements BoardRepository {
         base: after.startAt,
         completedAt: completedAt,
         intervalDays: intervalDays,
+        missedWindowPolicy: recurrence.missedWindowPolicy,
       ),
       targetEndAt: _advanceRecurrenceDate(
         base: after.targetEndAt,
         completedAt: completedAt,
         intervalDays: intervalDays,
+        missedWindowPolicy: recurrence.missedWindowPolicy,
       ),
       dueAt: _advanceRecurrenceDate(
         base: after.dueAt,
         completedAt: completedAt,
         intervalDays: intervalDays,
+        missedWindowPolicy: recurrence.missedWindowPolicy,
       ),
       estimatedEffortMinutes: after.estimatedEffortMinutes,
       actualEffortMinutes: null,
@@ -365,6 +490,65 @@ class BoardRepositoryImpl implements BoardRepository {
 
   void _throwValidation(String message) {
     throw BoardValidationException(message);
+  }
+
+  Future<void> _recordReorderSideEffects({
+    required String boardId,
+    required WorkItem existing,
+    required WorkItem updated,
+    required DateTime now,
+  }) async {
+    if (existing.parentId != updated.parentId) {
+      await _recordActivity(
+        boardId: boardId,
+        itemId: updated.itemId,
+        type: WorkItemActivityType.reparented,
+        at: now,
+        payload: {
+          'fromParentId': existing.parentId,
+          'toParentId': updated.parentId,
+        },
+      );
+    }
+    if (existing.columnId != updated.columnId) {
+      await _recordActivity(
+        boardId: boardId,
+        itemId: updated.itemId,
+        type: WorkItemActivityType.moved,
+        at: now,
+        payload: {
+          'fromColumnId': existing.columnId,
+          'toColumnId': updated.columnId,
+        },
+      );
+    }
+    if (existing.completedAt == null && updated.completedAt != null) {
+      await _recordActivity(
+        boardId: boardId,
+        itemId: updated.itemId,
+        type: WorkItemActivityType.completed,
+        at: now,
+        payload: {
+          'columnId': updated.columnId,
+        },
+      );
+      await _maybeGenerateRecurringInstance(
+        boardId: boardId,
+        before: existing,
+        after: updated,
+        now: now,
+      );
+    } else if (existing.completedAt != null && updated.completedAt == null) {
+      await _recordActivity(
+        boardId: boardId,
+        itemId: updated.itemId,
+        type: WorkItemActivityType.reopened,
+        at: now,
+        payload: {
+          'columnId': updated.columnId,
+        },
+      );
+    }
   }
 
   Future<void> _enqueue({
@@ -768,6 +952,7 @@ class BoardRepositoryImpl implements BoardRepository {
           'itemId': item.itemId,
           'columnId': fallbackColumn.columnId,
           'toColumnId': fallbackColumn.columnId,
+          'sortOrder': updatedWithCompletion.sortOrder,
           'updatedAt': updatedWithCompletion.updatedAt.toIso8601String(),
           'completedAt': updatedWithCompletion.completedAt?.toIso8601String(),
         },
@@ -823,8 +1008,14 @@ class BoardRepositoryImpl implements BoardRepository {
     required WorkItemType type,
     required String toColumnId,
     String? parentId,
+    String? description,
+    DateTime? startAt,
+    DateTime? targetEndAt,
+    DateTime? dueAt,
     List<String> tags = const [],
     int? estimatedEffortMinutes,
+    int? actualEffortMinutes,
+    WorkItemRecurrence? recurrence,
   }) async {
     await _requireCapability(
       boardId,
@@ -833,40 +1024,52 @@ class BoardRepositoryImpl implements BoardRepository {
     );
 
     final snapshot = await _snapshot(boardId);
+    final now = DateTime.now();
+    final effectiveStartAt =
+        startAt ?? (_isInProgressColumn(snapshot, toColumnId) ? now : null);
     final validationMessage = BoardValidationPolicy.validateNewItem(
       settings: snapshot.board.validationSettings,
       type: type,
       title: title,
       parentId: parentId,
-      startAt:
-          _isInProgressColumn(snapshot, toColumnId) ? DateTime.now() : null,
-      targetEndAt: null,
-      dueAt: null,
+      startAt: effectiveStartAt,
+      targetEndAt: targetEndAt,
+      dueAt: dueAt,
       estimatedEffortMinutes: estimatedEffortMinutes,
       existingItems: snapshot.items,
     );
     if (validationMessage != null) {
       _throwValidation(validationMessage);
     }
-
-    final now = DateTime.now();
     final itemId = 'w-${now.microsecondsSinceEpoch}';
     final doneColumnId = _doneColumnId(snapshot);
     final normalizedTags = _normalizeTags(tags);
+    final normalizedDescription = description?.trim();
+    final normalizedRecurrence = recurrence?.copyWith(
+      rootItemId: recurrence.rootItemId.trim().isEmpty
+          ? itemId
+          : recurrence.rootItemId.trim(),
+    );
 
     final item = WorkItem(
       itemId: itemId,
       boardId: boardId,
       title: title,
       type: type,
+      sortOrder: _nextItemSortOrder(snapshot.items),
       parentId: parentId,
       columnId: toColumnId,
-      startAt: _isInProgressColumn(snapshot, toColumnId) ? now : null,
+      description:
+          normalizedDescription?.isEmpty == true ? null : normalizedDescription,
+      startAt: effectiveStartAt,
+      targetEndAt: targetEndAt,
+      dueAt: dueAt,
       completedAt: toColumnId == doneColumnId ? now : null,
       estimatedEffortMinutes: estimatedEffortMinutes,
+      actualEffortMinutes: actualEffortMinutes,
       tags: normalizedTags,
       isInbox: false,
-      recurrence: null,
+      recurrence: normalizedRecurrence,
       createdAt: now,
       updatedAt: now,
     );
@@ -890,25 +1093,7 @@ class BoardRepositoryImpl implements BoardRepository {
       entity: 'workItem',
       entityId: itemId,
       boardId: boardId,
-      payload: {
-        'itemId': itemId,
-        'title': title,
-        'type': item.type.name,
-        'parentId': parentId,
-        'columnId': toColumnId,
-        'toColumnId': toColumnId,
-        'startAt': item.startAt?.toIso8601String(),
-        'targetEndAt': item.targetEndAt?.toIso8601String(),
-        'dueAt': item.dueAt?.toIso8601String(),
-        'estimatedEffortMinutes': item.estimatedEffortMinutes,
-        'actualEffortMinutes': item.actualEffortMinutes,
-        'createdAt': now.toIso8601String(),
-        'updatedAt': now.toIso8601String(),
-        'completedAt': item.completedAt?.toIso8601String(),
-        'isInbox': item.isInbox,
-        'recurrence': item.recurrence?.toMap(),
-        'tags': item.tags,
-      },
+      payload: _workItemPayload(item),
     );
     return item;
   }
@@ -945,6 +1130,7 @@ class BoardRepositoryImpl implements BoardRepository {
       boardId: boardId,
       title: normalizedTitle,
       type: WorkItemType.task,
+      sortOrder: _nextItemSortOrder(snapshot.items),
       columnId: orderedColumns.first.columnId,
       tags: normalizedTags,
       isInbox: true,
@@ -970,17 +1156,7 @@ class BoardRepositoryImpl implements BoardRepository {
       entity: 'workItem',
       entityId: itemId,
       boardId: boardId,
-      payload: {
-        'itemId': itemId,
-        'title': capture.title,
-        'type': capture.type.name,
-        'columnId': capture.columnId,
-        'toColumnId': capture.columnId,
-        'tags': capture.tags,
-        'isInbox': true,
-        'createdAt': now.toIso8601String(),
-        'updatedAt': now.toIso8601String(),
-      },
+      payload: _workItemPayload(capture),
     );
   }
 
@@ -1045,6 +1221,9 @@ class BoardRepositoryImpl implements BoardRepository {
       boardId: toBoardId,
       title: sourceItem.title,
       type: type,
+      sortOrder: fromBoardId == toBoardId
+          ? sourceItem.sortOrder
+          : _nextItemSortOrder(targetSnapshot.items),
       parentId: parentId,
       columnId: toColumnId,
       description: sourceItem.description,
@@ -1126,26 +1305,7 @@ class BoardRepositoryImpl implements BoardRepository {
         entity: 'workItem',
         entityId: triaged.itemId,
         boardId: toBoardId,
-        payload: {
-          'itemId': triaged.itemId,
-          'title': triaged.title,
-          'type': triaged.type.name,
-          'parentId': triaged.parentId,
-          'columnId': triaged.columnId,
-          'toColumnId': triaged.columnId,
-          'description': triaged.description,
-          'startAt': triaged.startAt?.toIso8601String(),
-          'targetEndAt': triaged.targetEndAt?.toIso8601String(),
-          'dueAt': triaged.dueAt?.toIso8601String(),
-          'estimatedEffortMinutes': triaged.estimatedEffortMinutes,
-          'actualEffortMinutes': triaged.actualEffortMinutes,
-          'tags': triaged.tags,
-          'archived': triaged.archived,
-          'isInbox': false,
-          'completedAt': triaged.completedAt?.toIso8601String(),
-          'recurrence': triaged.recurrence?.toMap(),
-          'updatedAt': triaged.updatedAt.toIso8601String(),
-        },
+        payload: _workItemPayload(triaged),
       );
       return;
     }
@@ -1215,27 +1375,7 @@ class BoardRepositoryImpl implements BoardRepository {
       entity: 'workItem',
       entityId: triaged.itemId,
       boardId: toBoardId,
-      payload: {
-        'itemId': triaged.itemId,
-        'title': triaged.title,
-        'type': triaged.type.name,
-        'parentId': triaged.parentId,
-        'columnId': triaged.columnId,
-        'toColumnId': triaged.columnId,
-        'description': triaged.description,
-        'startAt': triaged.startAt?.toIso8601String(),
-        'targetEndAt': triaged.targetEndAt?.toIso8601String(),
-        'dueAt': triaged.dueAt?.toIso8601String(),
-        'estimatedEffortMinutes': triaged.estimatedEffortMinutes,
-        'actualEffortMinutes': triaged.actualEffortMinutes,
-        'tags': triaged.tags,
-        'archived': triaged.archived,
-        'isInbox': false,
-        'completedAt': triaged.completedAt?.toIso8601String(),
-        'recurrence': triaged.recurrence?.toMap(),
-        'createdAt': triaged.createdAt.toIso8601String(),
-        'updatedAt': triaged.updatedAt.toIso8601String(),
-      },
+      payload: _workItemPayload(triaged),
     );
 
     await _enqueue(
@@ -1336,12 +1476,140 @@ class BoardRepositoryImpl implements BoardRepository {
         'itemId': itemId,
         'columnId': toColumnId,
         'toColumnId': toColumnId,
+        'sortOrder': updated.sortOrder,
         'startAt': updated.startAt?.toIso8601String(),
         'updatedAt': updated.updatedAt.toIso8601String(),
         'completedAt': updated.completedAt?.toIso8601String(),
         'isInbox': updated.isInbox,
         'recurrence': updated.recurrence?.toMap(),
       },
+    );
+  }
+
+  @override
+  Future<void> reorderItem({
+    required String boardId,
+    required String itemId,
+    String? toColumnId,
+    String? parentId,
+    bool clearParent = false,
+    String? beforeItemId,
+    String? afterItemId,
+  }) async {
+    await _requireCapability(
+      boardId,
+      BoardCapability.modifyItems,
+      'Current user cannot modify items in this board.',
+    );
+    final snapshot = await _snapshot(boardId);
+    final existing = snapshot.items.firstWhere((item) => item.itemId == itemId);
+    final nextColumnId = toColumnId ?? existing.columnId;
+    final nextParentId = clearParent ? null : (parentId ?? existing.parentId);
+    final now = DateTime.now();
+    final validationMessage = BoardValidationPolicy.validateItemUpdate(
+      settings: snapshot.board.validationSettings,
+      existing: existing,
+      nextTitle: existing.title,
+      nextParentId: nextParentId,
+      nextStartAt: existing.startAt ??
+          (_isInProgressColumn(snapshot, nextColumnId) ? now : null),
+      nextTargetEndAt: existing.targetEndAt,
+      nextDueAt: existing.dueAt,
+      nextEstimatedEffortMinutes: existing.estimatedEffortMinutes,
+      allItems: snapshot.items,
+    );
+    if (validationMessage != null) {
+      _throwValidation(validationMessage);
+    }
+
+    final beforeItem = beforeItemId == null
+        ? null
+        : snapshot.items
+            .where((item) => item.itemId == beforeItemId)
+            .cast<WorkItem?>()
+            .firstWhere((_) => true, orElse: () => null);
+    final afterItem = afterItemId == null
+        ? null
+        : snapshot.items
+            .where((item) => item.itemId == afterItemId)
+            .cast<WorkItem?>()
+            .firstWhere((_) => true, orElse: () => null);
+
+    final baseUpdated = existing.copyWith(
+      columnId: nextColumnId,
+      parentId: parentId,
+      clearParent: clearParent,
+      startAt: existing.startAt ??
+          (_isInProgressColumn(snapshot, nextColumnId) ? now : null),
+      completedAt: _doneColumnId(snapshot) == nextColumnId
+          ? (existing.completedAt ?? now)
+          : null,
+      isInbox: false,
+      updatedAt: now,
+    );
+    final betweenOrder = _betweenSortOrder(
+      beforeItem: beforeItem,
+      afterItem: afterItem,
+    );
+
+    if (betweenOrder != null) {
+      final reordered = baseUpdated.copyWith(sortOrder: betweenOrder);
+      await _localStore.upsertItem(reordered);
+      await _recordReorderSideEffects(
+        boardId: boardId,
+        existing: existing,
+        updated: reordered,
+        now: now,
+      );
+      await _enqueue(
+        now: now,
+        type: existing.columnId == reordered.columnId
+            ? OutboxOperationType.update
+            : OutboxOperationType.move,
+        entity: 'workItem',
+        entityId: reordered.itemId,
+        boardId: boardId,
+        payload: _workItemPayload(reordered),
+      );
+      return;
+    }
+
+    final normalized = _normalizedItemOrder(
+      items: snapshot.items,
+      movedItem: baseUpdated,
+      beforeItemId: beforeItemId,
+      afterItemId: afterItemId,
+    );
+    final updatedById = {for (final item in normalized) item.itemId: item};
+    final reordered = updatedById[itemId]!;
+    for (final item in normalized) {
+      final previous = snapshot.items
+          .where((entry) => entry.itemId == item.itemId)
+          .cast<WorkItem?>()
+          .firstWhere((_) => true, orElse: () => null);
+      if (previous == null ||
+          previous.sortOrder != item.sortOrder ||
+          previous.columnId != item.columnId ||
+          previous.parentId != item.parentId ||
+          previous.updatedAt != item.updatedAt) {
+        await _localStore.upsertItem(item);
+        await _enqueue(
+          now: now,
+          type: previous != null && previous.columnId != item.columnId
+              ? OutboxOperationType.move
+              : OutboxOperationType.update,
+          entity: 'workItem',
+          entityId: item.itemId,
+          boardId: boardId,
+          payload: _workItemPayload(item),
+        );
+      }
+    }
+    await _recordReorderSideEffects(
+      boardId: boardId,
+      existing: existing,
+      updated: reordered,
+      now: now,
     );
   }
 
@@ -1383,6 +1651,7 @@ class BoardRepositoryImpl implements BoardRepository {
       boardId: toBoardId,
       title: item.title,
       type: item.type,
+      sortOrder: _nextItemSortOrder(targetSnapshot.items),
       parentId: item.parentId,
       columnId: toColumnId,
       description: item.description,
@@ -1444,26 +1713,7 @@ class BoardRepositoryImpl implements BoardRepository {
       entity: 'workItem',
       entityId: itemId,
       boardId: toBoardId,
-      payload: {
-        'itemId': itemId,
-        'title': moved.title,
-        'type': moved.type.name,
-        'parentId': moved.parentId,
-        'columnId': toColumnId,
-        'toColumnId': toColumnId,
-        'description': moved.description,
-        'startAt': moved.startAt?.toIso8601String(),
-        'targetEndAt': moved.targetEndAt?.toIso8601String(),
-        'dueAt': moved.dueAt?.toIso8601String(),
-        'estimatedEffortMinutes': moved.estimatedEffortMinutes,
-        'actualEffortMinutes': moved.actualEffortMinutes,
-        'tags': moved.tags,
-        'archived': moved.archived,
-        'isInbox': moved.isInbox,
-        'recurrence': moved.recurrence?.toMap(),
-        'createdAt': moved.createdAt.toIso8601String(),
-        'updatedAt': moved.updatedAt.toIso8601String(),
-      },
+      payload: _workItemPayload(moved),
     );
 
     final deleteNow = DateTime.now();
@@ -1485,6 +1735,7 @@ class BoardRepositoryImpl implements BoardRepository {
     required String itemId,
     String? title,
     String? description,
+    double? sortOrder,
     String? parentId,
     DateTime? startAt,
     DateTime? targetEndAt,
@@ -1533,6 +1784,7 @@ class BoardRepositoryImpl implements BoardRepository {
     final updated = existing.copyWith(
       title: title,
       description: description,
+      sortOrder: sortOrder,
       parentId: parentId,
       startAt: startAt,
       targetEndAt: targetEndAt,
@@ -1607,6 +1859,7 @@ class BoardRepositoryImpl implements BoardRepository {
         'itemId': itemId,
         'title': updated.title,
         'description': updated.description,
+        'sortOrder': updated.sortOrder,
         'parentId': updated.parentId,
         'columnId': updated.columnId,
         'startAt': updated.startAt?.toIso8601String(),
@@ -1707,6 +1960,7 @@ class BoardRepositoryImpl implements BoardRepository {
       boardId: boardId,
       title: item.title,
       type: item.type,
+      sortOrder: _nextItemSortOrder(snapshot.items),
       parentId: nextParentId,
       columnId: restoredColumnId,
       description: item.description,
@@ -2009,6 +2263,7 @@ class BoardRepositoryImpl implements BoardRepository {
           'itemId': item.itemId,
           'title': updatedItem.title,
           'type': updatedItem.type.name,
+          'sortOrder': updatedItem.sortOrder,
           'parentId': updatedItem.parentId,
           'columnId': updatedItem.columnId,
           'completedAt': updatedItem.completedAt?.toIso8601String(),

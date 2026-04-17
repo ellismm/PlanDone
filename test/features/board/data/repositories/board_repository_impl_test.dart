@@ -8,6 +8,7 @@ import 'package:plandone/src/features/board/domain/models/board_member.dart';
 import 'package:plandone/src/features/board/domain/models/board_validation_settings.dart';
 import 'package:plandone/src/features/board/domain/models/board_workflow_settings.dart';
 import 'package:plandone/src/features/board/domain/models/column.dart';
+import 'package:plandone/src/features/board/domain/models/work_item_recurrence.dart';
 import 'package:plandone/src/features/board/domain/models/work_item_type.dart';
 
 void main() {
@@ -181,6 +182,49 @@ void main() {
     expect(moveOp.payload['completedAt'], isNotNull);
   });
 
+  test('createItem persists extended metadata from create flow', () async {
+    final localStore = InMemoryLocalBoardStore(currentUserId: 'user-1');
+    final outboxQueue = InMemoryOutboxQueue();
+    final repository =
+        BoardRepositoryImpl(localStore: localStore, outboxQueue: outboxQueue);
+
+    final created = await repository.createItem(
+      boardId: 'board-1',
+      title: 'Plan recurring work',
+      type: WorkItemType.action,
+      toColumnId: 'c-doing',
+      parentId: 't-2',
+      description: 'Capture richer create-time metadata.',
+      targetEndAt: DateTime(2026, 4, 1),
+      dueAt: DateTime(2026, 4, 2),
+      tags: const ['create', 'metadata'],
+      estimatedEffortMinutes: 30,
+      actualEffortMinutes: 10,
+      recurrence: const WorkItemRecurrence(
+        rootItemId: '',
+        cadence: WorkItemRecurrenceCadence.weekly,
+        interval: 2,
+        missedWindowPolicy: WorkItemRecurrenceMissedWindowPolicy.singleStep,
+      ),
+    );
+
+    expect(created.description, 'Capture richer create-time metadata.');
+    expect(created.startAt, isNotNull);
+    expect(created.targetEndAt, DateTime(2026, 4, 1));
+    expect(created.dueAt, DateTime(2026, 4, 2));
+    expect(created.estimatedEffortMinutes, 30);
+    expect(created.actualEffortMinutes, 10);
+    expect(created.recurrence, isNotNull);
+    expect(created.recurrence!.rootItemId, created.itemId);
+    expect(created.tags, containsAll(const ['create', 'metadata']));
+
+    final pending = await outboxQueue.listPending();
+    final op = pending.last;
+    expect(op.payload['description'], 'Capture richer create-time metadata.');
+    expect(op.payload['actualEffortMinutes'], 10);
+    expect(op.payload['recurrence'], isNotNull);
+  });
+
   test('renaming done column does not break completion semantics', () async {
     final localStore = InMemoryLocalBoardStore(currentUserId: 'user-1');
     final outboxQueue = InMemoryOutboxQueue();
@@ -303,6 +347,35 @@ void main() {
     expect(secondMoveOp.payload['itemId'], 'w-1');
     expect(secondMoveOp.payload['toColumnId'], 'c-doing');
     expect(secondMoveOp.payload['completedAt'], isNull);
+  });
+
+  test(
+      'reorderItem can reposition and re-parent an item while persisting sort order',
+      () async {
+    final localStore = InMemoryLocalBoardStore(currentUserId: 'user-1');
+    final outboxQueue = InMemoryOutboxQueue();
+    final repository =
+        BoardRepositoryImpl(localStore: localStore, outboxQueue: outboxQueue);
+
+    await repository.reorderItem(
+      boardId: 'board-1',
+      itemId: 'a-3',
+      parentId: 't-3',
+      beforeItemId: null,
+      afterItemId: 'a-4',
+    );
+
+    final snapshot = await localStore.getBoard('board-1');
+    final moved = snapshot.items.firstWhere((item) => item.itemId == 'a-3');
+    final anchor = snapshot.items.firstWhere((item) => item.itemId == 'a-4');
+    expect(moved.parentId, 't-3');
+    expect(moved.sortOrder, lessThan(anchor.sortOrder));
+
+    final pending = await outboxQueue.listPending();
+    final reorderOp = pending.lastWhere((op) => op.entityId == 'a-3');
+    expect(reorderOp.entity, 'workItem');
+    expect(reorderOp.payload['sortOrder'], isA<num>());
+    expect(reorderOp.payload['parentId'], 't-3');
   });
 
   test('updateItem updates editable fields and enqueues update outbox op',

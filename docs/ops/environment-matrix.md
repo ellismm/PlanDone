@@ -23,14 +23,28 @@ Keep Firebase setup reproducible across `dev`, `staging`, and optional `prod` wh
   - Enables Firebase auth runtime path.
 - `USE_FIREBASE_SYNC`
   - Enables Firestore sync adapter + listener hydration.
+- `USE_FIREBASE_PUSH`
+  - Enables optional FCM token registration/manual push path.
 
 Recommended per environment:
 
-| Environment | USE_IN_MEMORY_LOCAL_STORE | USE_FIREBASE_AUTH | USE_FIREBASE_SYNC |
-| --- | --- | --- | --- |
-| `dev` (emulator/local) | `true` or `false` | `false` by default | `false` by default |
-| `staging` | `false` | `true` | `true` |
-| `prod` | `false` | `true` | `true` |
+| Environment | USE_IN_MEMORY_LOCAL_STORE | USE_FIREBASE_AUTH | USE_FIREBASE_SYNC | USE_FIREBASE_PUSH |
+| --- | --- | --- | --- | --- |
+| `dev` (emulator/local) | `true` or `false` | `false` by default | `false` by default | `false` by default |
+| `staging` | `false` | `true` | `true` | `false` by default |
+| `prod` | `false` | `true` | `true` | `false` by default |
+
+## Recommended personal-use profile
+
+For day-to-day personal use on Android, prefer:
+
+- `USE_IN_MEMORY_LOCAL_STORE=false`
+- `USE_FIREBASE_AUTH=true`
+- `USE_FIREBASE_SYNC=true`
+- `USE_FIREBASE_PUSH=false` unless you are explicitly testing the optional FCM path
+
+See [personal-runtime-profile.md](/home/messay/coding/own/PlanDone/docs/ops/personal-runtime-profile.md).
+For Android auth wiring and biometric quick unlock setup, see [android-auth-setup.md](/home/messay/coding/own/PlanDone/docs/ops/android-auth-setup.md).
 
 ## Firebase project alias setup
 
@@ -39,7 +53,7 @@ Recommended per environment:
 3. Validate alias resolution:
    - `firebase use dev`
    - `firebase use staging`
-   - `firebase use prod` (if used)
+   - `firebase use prod` if used
 
 ## Build/deploy environment selection
 

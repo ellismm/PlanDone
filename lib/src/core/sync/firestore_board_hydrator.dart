@@ -32,7 +32,9 @@ class FirestoreBoardHydrator {
     _subscriptions.add(
       _boards.doc(boardId).snapshots().listen((doc) async {
         if (!doc.exists) {
-          await _localStore.deleteBoard(boardId);
+          // A missing remote board document is not authoritative for deleting a
+          // local board. Newly created local boards may not be synced yet, and
+          // eagerly deleting them can strand the app on a non-existent board id.
           return;
         }
         final data = doc.data() ?? const <String, dynamic>{};
@@ -170,6 +172,7 @@ class FirestoreBoardHydrator {
               boardId: boardId,
               title: (data['title'] as String?) ?? 'Untitled',
               type: type,
+              sortOrder: (data['sortOrder'] as num?)?.toDouble() ?? 0,
               parentId: data['parentId'] as String?,
               columnId: (data['columnId'] as String?) ?? 'c-todo',
               description: data['description'] as String?,

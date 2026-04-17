@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart' as drift;
-
 import '../../features/board/data/local/drift/board_database.dart';
 import 'outbox_operation.dart';
 import 'outbox_queue.dart';

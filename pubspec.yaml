@@ -1,7 +1,7 @@
 name: plandone
-description: Offline-first collaborative Kanban starter for PlanDone
+description: Personal planning, todo, and daily action flow app for PlanDone
 publish_to: "none"
-version: 0.1.0+1
+version: 0.1.0+2
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -19,6 +19,8 @@ dependencies:
   cloud_firestore: ^5.5.0
   firebase_messaging: ^15.1.6
   google_sign_in: ^6.2.2
+  flutter_secure_storage: ^9.2.2
+  local_auth: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -30,3 +32,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/

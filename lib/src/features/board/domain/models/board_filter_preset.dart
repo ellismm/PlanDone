@@ -1,8 +1,11 @@
+import 'work_item_type.dart';
+
 class BoardFilterPreset {
   const BoardFilterPreset({
     required this.presetId,
     required this.name,
     required this.visibilityFilter,
+    required this.selectedTypes,
     required this.stateFilter,
     required this.tagFilter,
     required this.textQuery,
@@ -12,6 +15,9 @@ class BoardFilterPreset {
     required this.showArchivedOnly,
     required this.planningView,
     required this.workspaceSurface,
+    required this.calendarSubview,
+    required this.calendarVisibleDateKinds,
+    required this.showCalendarUnscheduled,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -19,6 +25,7 @@ class BoardFilterPreset {
   final String presetId;
   final String name;
   final String visibilityFilter;
+  final List<String> selectedTypes;
   final String stateFilter;
   final String tagFilter;
   final String textQuery;
@@ -28,12 +35,16 @@ class BoardFilterPreset {
   final bool showArchivedOnly;
   final String planningView;
   final String workspaceSurface;
+  final String calendarSubview;
+  final List<String> calendarVisibleDateKinds;
+  final bool showCalendarUnscheduled;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   BoardFilterPreset copyWith({
     String? name,
     String? visibilityFilter,
+    List<String>? selectedTypes,
     String? stateFilter,
     String? tagFilter,
     String? textQuery,
@@ -43,6 +54,9 @@ class BoardFilterPreset {
     bool? showArchivedOnly,
     String? planningView,
     String? workspaceSurface,
+    String? calendarSubview,
+    List<String>? calendarVisibleDateKinds,
+    bool? showCalendarUnscheduled,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -50,6 +64,7 @@ class BoardFilterPreset {
       presetId: presetId,
       name: name ?? this.name,
       visibilityFilter: visibilityFilter ?? this.visibilityFilter,
+      selectedTypes: selectedTypes ?? this.selectedTypes,
       stateFilter: stateFilter ?? this.stateFilter,
       tagFilter: tagFilter ?? this.tagFilter,
       textQuery: textQuery ?? this.textQuery,
@@ -59,6 +74,11 @@ class BoardFilterPreset {
       showArchivedOnly: showArchivedOnly ?? this.showArchivedOnly,
       planningView: planningView ?? this.planningView,
       workspaceSurface: workspaceSurface ?? this.workspaceSurface,
+      calendarSubview: calendarSubview ?? this.calendarSubview,
+      calendarVisibleDateKinds:
+          calendarVisibleDateKinds ?? this.calendarVisibleDateKinds,
+      showCalendarUnscheduled:
+          showCalendarUnscheduled ?? this.showCalendarUnscheduled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -69,6 +89,7 @@ class BoardFilterPreset {
       'presetId': presetId,
       'name': name,
       'visibilityFilter': visibilityFilter,
+      'selectedTypes': selectedTypes,
       'stateFilter': stateFilter,
       'tagFilter': tagFilter,
       'textQuery': textQuery,
@@ -78,6 +99,9 @@ class BoardFilterPreset {
       'showArchivedOnly': showArchivedOnly,
       'planningView': planningView,
       'workspaceSurface': workspaceSurface,
+      'calendarSubview': calendarSubview,
+      'calendarVisibleDateKinds': calendarVisibleDateKinds,
+      'showCalendarUnscheduled': showCalendarUnscheduled,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -88,6 +112,14 @@ class BoardFilterPreset {
             ?.whereType<String>()
             .toList(growable: false) ??
         const <String>[];
+    final selectedTypes = (map['selectedTypes'] as List?)
+            ?.whereType<String>()
+            .toList(growable: false) ??
+        const <String>[];
+    final calendarVisibleDateKinds = (map['calendarVisibleDateKinds'] as List?)
+            ?.whereType<String>()
+            .toList(growable: false) ??
+        const <String>['start', 'targetEnd', 'due'];
 
     final createdAt = DateTime.tryParse((map['createdAt'] as String?) ?? '') ??
         DateTime.fromMillisecondsSinceEpoch(0);
@@ -99,6 +131,7 @@ class BoardFilterPreset {
           'preset-${DateTime.now().microsecondsSinceEpoch}',
       name: (map['name'] as String?) ?? 'Preset',
       visibilityFilter: (map['visibilityFilter'] as String?) ?? 'allItems',
+      selectedTypes: selectedTypes,
       stateFilter: (map['stateFilter'] as String?) ?? 'any',
       tagFilter: (map['tagFilter'] as String?) ?? '',
       textQuery: (map['textQuery'] as String?) ?? '',
@@ -108,8 +141,32 @@ class BoardFilterPreset {
       showArchivedOnly: map['showArchivedOnly'] == true,
       planningView: (map['planningView'] as String?) ?? 'kanban',
       workspaceSurface: (map['workspaceSurface'] as String?) ?? 'board',
+      calendarSubview: (map['calendarSubview'] as String?) ?? 'month',
+      calendarVisibleDateKinds: calendarVisibleDateKinds,
+      showCalendarUnscheduled: map['showCalendarUnscheduled'] != false,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
+  }
+
+  Set<WorkItemType> resolvedSelectedTypes() {
+    if (selectedTypes.isNotEmpty) {
+      final resolved = selectedTypes
+          .map(
+            (name) => WorkItemType.values.where((entry) => entry.name == name),
+          )
+          .where((matches) => matches.isNotEmpty)
+          .map((matches) => matches.first)
+          .toSet();
+      if (resolved.isNotEmpty) return resolved;
+    }
+
+    return switch (visibilityFilter) {
+      'goalsOnly' => {WorkItemType.goal},
+      'projectsOnly' => {WorkItemType.project},
+      'tasksOnly' => {WorkItemType.task},
+      'actionsOnly' => {WorkItemType.action},
+      _ => <WorkItemType>{},
+    };
   }
 }

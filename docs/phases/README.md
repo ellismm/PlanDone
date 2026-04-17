@@ -3,7 +3,7 @@
 This folder contains the delivery roadmap for PlanDone, aligned to:
 
 - `README.md`
-- `docs/ project_outline.md`
+- `docs/project_outline.md`
 - `docs/architecture.md`
 - `docs/sequence.md`
 - `docs/uml.md`
@@ -11,10 +11,11 @@ This folder contains the delivery roadmap for PlanDone, aligned to:
 
 ## What this gives you
 
-- A phase-by-phase implementation strategy
-- Scope boundaries and acceptance criteria per phase
-- Risk/dependency notes for sequencing work
-- Ready-to-use Cline prompts (see `../prompts/`)
+- a phase-by-phase implementation strategy
+- scope boundaries and acceptance criteria per phase
+- risk/dependency notes for sequencing work
+- ready-to-use Cline prompts in `../prompts/`
+- personal MVP closeout docs for the post-phase hardening pass
 
 ## Recommended execution order
 
@@ -38,4 +39,6 @@ This folder contains the delivery roadmap for PlanDone, aligned to:
 18. `phase-17-notifications-preferences.md`
 19. `phase-18-recurring-tasks.md`
 20. `phase-19-smart-autofill-defaults.md`
-21. `progress-checklist.md`
+21. `personal-mvp-closeout.md`
+22. `known-limitations.md`
+23. `progress-checklist.md`

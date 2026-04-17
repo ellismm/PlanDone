@@ -62,6 +62,13 @@ Your docs define PlanDone as offline-first and collaborative, but collaboration 
 - Auth flow is now gated at app boot via session provider:
   - `session == null` -> auth page
   - `session != null` -> board shell
+- Android auth now supports:
+  - email/password sign-up with display name
+  - email/password sign-in
+  - Google sign-in
+  - password reset
+  - biometric quick unlock after a prior successful Android sign-in
+- Missing Android Firebase config now degrades into a friendly setup warning instead of a bootstrap crash.
 - Drift remains the default runtime path for board local data.
 - In-memory board/local settings path remains available for tests/dev toggles.
 - Board runtime is scoped by authenticated user identity to preserve separation.

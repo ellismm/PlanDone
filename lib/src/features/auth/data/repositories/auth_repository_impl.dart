@@ -23,14 +23,30 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AuthSession> signUpWithEmailPassword({
     required String email,
     required String password,
+    required String displayName,
   }) {
     return _dataSource.signUpWithEmailPassword(
-        email: email, password: password);
+      email: email,
+      password: password,
+      displayName: displayName,
+    );
   }
 
   @override
   Future<AuthSession> signInWithGoogle() {
     return _dataSource.signInWithGoogle();
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail({
+    required String email,
+  }) {
+    return _dataSource.sendPasswordResetEmail(email: email);
+  }
+
+  @override
+  Future<void> deleteAccount() {
+    return _dataSource.deleteAccount();
   }
 
   @override

@@ -1,8 +1,21 @@
+import 'dart:ffi';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plandone/src/features/board/data/local/drift/board_database.dart';
 import 'package:plandone/src/features/board/data/repositories/autofill_settings_repository_impl.dart';
 import 'package:plandone/src/features/board/domain/models/autofill_settings.dart';
+
+bool _hasSqliteDynamicLibrary() {
+  try {
+    DynamicLibrary.open('libsqlite3.so');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+final _canRunDriftTests = _hasSqliteDynamicLibrary();
 
 void main() {
   test('in-memory autofill settings are user-scoped', () async {
@@ -49,5 +62,5 @@ void main() {
     expect(loaded.suggestParent, isTrue);
     expect(loaded.suggestTags, isFalse);
     expect(loaded.suggestEstimate, isTrue);
-  });
+  }, skip: !_canRunDriftTests);
 }

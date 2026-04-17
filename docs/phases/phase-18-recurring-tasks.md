@@ -2,47 +2,45 @@
 
 ## Why this phase exists
 
-Many real workflows are recurring. Users need recurring-item support that respects completion state and avoids creating noisy duplicates.
+Many real workflows are recurring. Users need recurring-item support that respects completion state and avoids noisy duplicates.
 
 ## Scope
 
 ### In scope
 
-- Recurrence settings for supported items (daily/weekly/custom cadence baseline).
-- Rule: next instance creation depends on prior instance completion policy.
-- Option to skip or defer missed occurrences.
-- Local-first recurrence scheduling and sync-safe operation IDs.
-- Visibility of recurrence state in item details.
+- Recurrence settings for supported items (`task` and `action`).
+- Completion-gated recurring generation.
+- Deterministic late-completion policy for missed windows.
+- Local-first duplicate-safe generation.
+- Visibility and editing of recurrence state in item details.
 
 ### Out of scope
 
-- Full calendar suite or external calendar sync.
-- Complex RRULE edge-case parity with enterprise calendar systems.
+- External calendar sync.
+- Enterprise RRULE parity.
+- Non-completion-gated recurrence for the MVP.
 
-## Key implementation targets
+## Implementation summary (completed)
 
-1. Define recurring configuration model and canonical rule evaluation.
-2. Implement instance-generation engine with completion-gated behavior.
-3. Ensure no duplicate instance creation during reconnect/retry cycles.
-4. Add UI for enabling/editing recurrence in item details.
-5. Add tests for weekly gating rule, skipped windows, and offline sync edge cases.
+- Added `WorkItemRecurrence` to the canonical item model.
+- Added cadence/interval support plus deterministic root/sequence identity.
+- Added `missedWindowPolicy` with:
+  - `nextEligible`
+  - `singleStep`
+  - `manualCatchUp`
+- Added completion-triggered next-instance generation with duplicate suppression.
+- Integrated recurrence controls and recurrence summaries into item details/editing.
+- Preserved existing validation and permission boundaries.
 
-## Risks and mitigations
+## Recurrence rules reference
 
-- **Risk:** duplicate instances under sync retries.  
-  **Mitigation:** idempotent recurrence keys and deterministic evaluation windows.
-- **Risk:** confusing recurrence controls.  
-  **Mitigation:** plain-language recurrence summaries in UI.
+- Only `task` and `action` items may recur.
+- The MVP keeps recurrence **completion-gated only**.
+- Completing an eligible recurring item attempts to generate exactly one next instance.
+- Duplicate generation is prevented through root/sequence checks and deterministic ids.
+- Late completion is handled by the selected missed-window policy.
 
-## Acceptance criteria
+## Validation notes
 
-- Recurring tasks can be configured and run reliably.
-- Completion-gated recurrence behavior works as expected.
-- Duplicate generation is prevented across offline/online transitions.
-- Tests/docs are updated and coherent.
-
-## Exit artifacts
-
-- Recurrence rules reference.
-- Tests for recurrence lifecycle and sync behavior.
-- Phase completion summary.
+- Added targeted tests for recurrence model behavior, duplicate suppression, and late-completion handling.
+- Full `flutter test` passes.

@@ -4,11 +4,28 @@ enum WorkItemRecurrenceCadence {
   customDays,
 }
 
+enum WorkItemRecurrenceMissedWindowPolicy {
+  nextEligible,
+  singleStep,
+  manualCatchUp,
+}
+
 WorkItemRecurrenceCadence workItemRecurrenceCadenceFromName(String? raw) {
   if (raw == null || raw.isEmpty) return WorkItemRecurrenceCadence.weekly;
   return WorkItemRecurrenceCadence.values.firstWhere(
     (entry) => entry.name == raw,
     orElse: () => WorkItemRecurrenceCadence.weekly,
+  );
+}
+
+WorkItemRecurrenceMissedWindowPolicy
+    workItemRecurrenceMissedWindowPolicyFromName(String? raw) {
+  if (raw == null || raw.isEmpty) {
+    return WorkItemRecurrenceMissedWindowPolicy.nextEligible;
+  }
+  return WorkItemRecurrenceMissedWindowPolicy.values.firstWhere(
+    (entry) => entry.name == raw,
+    orElse: () => WorkItemRecurrenceMissedWindowPolicy.nextEligible,
   );
 }
 
@@ -18,6 +35,7 @@ class WorkItemRecurrence {
     this.cadence = WorkItemRecurrenceCadence.weekly,
     this.interval = 1,
     this.completionGated = true,
+    this.missedWindowPolicy = WorkItemRecurrenceMissedWindowPolicy.nextEligible,
     required this.rootItemId,
     this.sequence = 0,
   });
@@ -26,6 +44,7 @@ class WorkItemRecurrence {
   final WorkItemRecurrenceCadence cadence;
   final int interval;
   final bool completionGated;
+  final WorkItemRecurrenceMissedWindowPolicy missedWindowPolicy;
   final String rootItemId;
   final int sequence;
 
@@ -43,6 +62,7 @@ class WorkItemRecurrence {
     WorkItemRecurrenceCadence? cadence,
     int? interval,
     bool? completionGated,
+    WorkItemRecurrenceMissedWindowPolicy? missedWindowPolicy,
     String? rootItemId,
     int? sequence,
   }) {
@@ -51,6 +71,7 @@ class WorkItemRecurrence {
       cadence: cadence ?? this.cadence,
       interval: interval ?? this.interval,
       completionGated: completionGated ?? this.completionGated,
+      missedWindowPolicy: missedWindowPolicy ?? this.missedWindowPolicy,
       rootItemId: rootItemId ?? this.rootItemId,
       sequence: sequence ?? this.sequence,
     );
@@ -62,6 +83,7 @@ class WorkItemRecurrence {
       'cadence': cadence.name,
       'interval': interval,
       'completionGated': completionGated,
+      'missedWindowPolicy': missedWindowPolicy.name,
       'rootItemId': rootItemId,
       'sequence': sequence,
     };
@@ -88,6 +110,9 @@ class WorkItemRecurrence {
       cadence: workItemRecurrenceCadenceFromName(map['cadence'] as String?),
       interval: readInt('interval', 1).clamp(1, 365),
       completionGated: map['completionGated'] != false,
+      missedWindowPolicy: workItemRecurrenceMissedWindowPolicyFromName(
+        map['missedWindowPolicy'] as String?,
+      ),
       rootItemId: rootItemId,
       sequence: readInt('sequence', 0).clamp(0, 1000000),
     );

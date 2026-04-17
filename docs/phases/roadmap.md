@@ -1,38 +1,38 @@
 # PlanDone Delivery Roadmap (Usability-First Revision)
 
-## 1) Project evaluation summary
+## 1. Project evaluation summary
 
-Based on docs + current implementation, PlanDone has a strong technical base and should now prioritize **day-to-day usability, product structure, and operational reliability** before AI expansion.
+Based on docs and implementation status, PlanDone has a strong technical base and should prioritize **day-to-day usability, trust, and operational reliability** before AI expansion.
 
 ### What is already solid
 
-- Layered architecture is consistent (`UI -> State -> Domain -> Repository -> Data Sources`).
-- Local-first/offline-first flow exists and is mostly stable:
+- Layered architecture is consistent: `UI -> State -> Domain -> Repository -> Data Sources`.
+- Local-first/offline-first flow exists and is stable:
   - local write first
   - outbox queue
   - sync engine
   - Firestore hydration listeners
-- Collaboration + role permissions are implemented across app + rules.
-- Board/item interactions are rich for a starter (drag/move/filter/hierarchy context).
+- Collaboration and role permissions are implemented across app and rules.
+- Board/item interactions are rich for a personal planning product.
 
-### Biggest gaps against the product vision
+### Biggest gaps against the original product vision
 
-- The UX is still effectively single-page and modal-heavy for frequent use.
-- No dedicated board-configuration experience despite growing complexity.
-- Workflow logic still relies on column names in places (e.g., done semantics), not formal workflow states.
-- Planning views (hierarchy/backlog/focus/history) are not first-class multi-view pages.
-- Cloud backend setup exists, but environment/ops maturity for reliable daily use is still limited.
+- The product still needs explicit release-readiness discipline for personal daily use.
+- Notification delivery must be trustworthy on real phones.
+- Recurrence must stay simple, deterministic, and honest about its limits.
+- Local-first trust benefits from explicit backup/restore.
+- Repo-facing docs must match the real product instead of an early starter state.
 
-## 2) Guiding constraints (non-negotiables)
+## 2. Guiding constraints (non-negotiables)
 
 1. Offline-first remains primary.
 2. Local DB remains source of truth for UI.
-3. Four-level hierarchy remains flexible (Goal/Project/Task/Action).
-4. Sync path remains: local -> outbox -> Firestore -> listener hydrate -> local.
+3. Four-level hierarchy remains flexible (`Goal/Project/Task/Action`).
+4. Sync path remains `local -> outbox -> Firestore -> listener hydrate -> local`.
 5. No architecture redesign unless explicitly requested.
 6. Avoid enterprise-heavy complexity that harms usability.
 
-## 3) Revised phase structure
+## 3. Revised phase structure
 
 - **Phase 1:** Foundation Completion (auth + stable local baseline)
 - **Phase 2:** Sync & Realtime Completion (outbox + Firestore + hydration)
@@ -54,13 +54,13 @@ Based on docs + current implementation, PlanDone has a strong technical base and
 - **Phase 18:** Recurring Tasks & Cycle Rules
 - **Phase 19:** Smart Autofill & Predictive Defaults (Non-AI)
 
-## 4) Recommended execution sequence
+## 4. Recommended execution sequence
 
 1. Lock Phase 1–3 acceptance outcomes.
 2. Execute Phase 4 to establish multi-page structure and discoverability.
 3. Execute Phase 5 to formalize workflow states and configurable designated columns.
 4. Execute Phase 6 to ship practical planning views.
-5. Execute Phase 7 for cloud environment hardening (dev/staging/prod posture).
+5. Execute Phase 7 for cloud environment hardening.
 6. Execute Phase 8 for reliability/security/performance polish.
 7. Execute Phase 10 for fast daily capture flow.
 8. Execute Phase 11 for reusable planning filter presets.
@@ -72,15 +72,16 @@ Based on docs + current implementation, PlanDone has a strong technical base and
 14. Execute Phase 17 for notifications and alert preferences.
 15. Execute Phase 18 for recurring task lifecycle automation.
 16. Execute Phase 19 for deterministic smart autofill defaults.
-17. Execute deferred Phase 9 once usability/reliability baseline through Phase 19 is proven.
+17. Execute the personal MVP closeout pass for reminders, release readiness, backup/restore, and docs alignment.
+18. Execute deferred Phase 9 only after the personal MVP baseline is proven in daily use.
 
-## 5) Go/no-go gates between phases
+## 5. Go/no-go gates between phases
 
 - **Gate to Phase 4:** Collaboration model secure and permission-consistent.
 - **Gate to Phase 5:** Navigation and dedicated config surfaces are stable.
 - **Gate to Phase 6:** Workflow semantics are decoupled from raw column names.
-- **Gate to Phase 7:** Product flow stable enough to harden cloud operations.
-- **Gate to Phase 8:** Cloud baseline and observability foundations in place.
+- **Gate to Phase 7:** Product flow is stable enough to harden cloud operations.
+- **Gate to Phase 8:** Cloud baseline and observability foundations are in place.
 - **Gate to Phase 10:** Daily-use UX and reliability targets are met.
 - **Gate to Phase 11:** Quick capture flow is stable and discoverable.
 - **Gate to Phase 12:** Filter presets are stable across views.
@@ -91,9 +92,27 @@ Based on docs + current implementation, PlanDone has a strong technical base and
 - **Gate to Phase 17:** Hierarchy visual cues are clear and accessible.
 - **Gate to Phase 18:** Notification preference model is stable.
 - **Gate to Phase 19:** Recurrence behavior is deterministic and idempotent.
-- **Gate to Phase 9 (Deferred):** Usability enhancements through Phase 19 are stable.
+- **Gate to personal MVP closeout:** Phase 19 behavior is stable enough to harden release trust.
+- **Gate to Phase 9 (Deferred):** The personal MVP baseline is stable in daily use.
 
-## 6) Supporting files
+## 6. Personal MVP closeout
+
+After Phase 19, the closeout focus shifts from breadth to trust:
+
+- local Android reminder delivery
+- clean automated validation
+- recurrence edge-case completion
+- JSON backup/restore safety
+- truthful docs and explicit known limitations
+
+Reference docs:
+
+- `personal-mvp-closeout.md`
+- `known-limitations.md`
+- `../ops/personal-runtime-profile.md`
+- `../ops/personal-mvp-smoke-checklist.md`
+
+## 7. Supporting files
 
 - `phase-1-foundation.md`
 - `phase-2-sync-realtime.md`
@@ -114,23 +133,6 @@ Based on docs + current implementation, PlanDone has a strong technical base and
 - `phase-17-notifications-preferences.md`
 - `phase-18-recurring-tasks.md`
 - `phase-19-smart-autofill-defaults.md`
+- `personal-mvp-closeout.md`
+- `known-limitations.md`
 - `progress-checklist.md`
-- `../prompts/phase-1-cline-prompt.md`
-- `../prompts/phase-2-cline-prompt.md`
-- `../prompts/phase-3-cline-prompt.md`
-- `../prompts/phase-4-cline-prompt.md`
-- `../prompts/phase-5-cline-prompt.md`
-- `../prompts/phase-6-cline-prompt.md`
-- `../prompts/phase-7-cline-prompt.md`
-- `../prompts/phase-8-cline-prompt.md`
-- `../prompts/phase-9-cline-prompt.md`
-- `../prompts/phase-10-cline-prompt.md`
-- `../prompts/phase-11-cline-prompt.md`
-- `../prompts/phase-12-cline-prompt.md`
-- `../prompts/phase-13-cline-prompt.md`
-- `../prompts/phase-14-cline-prompt.md`
-- `../prompts/phase-15-cline-prompt.md`
-- `../prompts/phase-16-cline-prompt.md`
-- `../prompts/phase-17-cline-prompt.md`
-- `../prompts/phase-18-cline-prompt.md`
-- `../prompts/phase-19-cline-prompt.md`

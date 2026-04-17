@@ -10,6 +10,7 @@ class WorkItem {
     required this.columnId,
     required this.createdAt,
     required this.updatedAt,
+    this.sortOrder = 0,
     this.parentId,
     this.description,
     this.assigneeIds = const [],
@@ -29,6 +30,7 @@ class WorkItem {
   final String boardId;
   final String title;
   final WorkItemType type;
+  final double sortOrder;
   final String? parentId;
   final String columnId;
   final String? description;
@@ -48,6 +50,7 @@ class WorkItem {
 
   WorkItem copyWith({
     String? title,
+    double? sortOrder,
     String? parentId,
     String? columnId,
     String? description,
@@ -76,6 +79,7 @@ class WorkItem {
       boardId: boardId,
       title: title ?? this.title,
       type: type,
+      sortOrder: sortOrder ?? this.sortOrder,
       parentId: clearParent ? null : (parentId ?? this.parentId),
       columnId: columnId ?? this.columnId,
       description: clearDescription ? null : (description ?? this.description),

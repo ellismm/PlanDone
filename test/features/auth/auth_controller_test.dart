@@ -10,8 +10,10 @@ void main() {
     final signUpSession = await repository.signUpWithEmailPassword(
       email: 'tester@plandone.dev',
       password: 'password-123',
+      displayName: 'Tester',
     );
     expect(signUpSession.user.email, 'tester@plandone.dev');
+    expect(signUpSession.user.displayName, 'Tester');
 
     final signInSession = await repository.signInWithEmailPassword(
       email: 'tester@plandone.dev',
@@ -33,5 +35,14 @@ void main() {
 
     expect(session.user.uid, 'google-user');
     expect(session.user.email, 'google-user@plandone.local');
+  });
+
+  test('in-memory auth accepts password reset requests', () async {
+    final dataSource = InMemoryAuthDataSource();
+    final repository = AuthRepositoryImpl(dataSource);
+
+    await repository.sendPasswordResetEmail(
+      email: 'tester@plandone.dev',
+    );
   });
 }

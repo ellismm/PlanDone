@@ -81,12 +81,12 @@ void main() {
     expect(find.text('Children: 2'), findsOneWidget);
   });
 
-  testWidgets('compact density reduces parent chrome and keeps title tooltip',
+  testWidgets(
+      'compact density still shows the parent title and keeps title tooltip',
       (tester) async {
     await tester.pumpWidget(buildTile(BoardCardDensity.compact));
 
-    expect(find.textContaining('Parent: Parent item'), findsNothing);
-    expect(find.text('Parent'), findsOneWidget);
+    expect(find.textContaining('Parent: Parent item'), findsOneWidget);
 
     final tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
     expect(
@@ -97,5 +97,101 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  testWidgets('compact density stays thinner than comfortable density',
+      (tester) async {
+    await tester.pumpWidget(buildTile(BoardCardDensity.compact));
+    final compactHeight = tester.getSize(find.byType(Card)).height;
+
+    await tester.pumpWidget(buildTile(BoardCardDensity.comfortable));
+    final comfortableHeight = tester.getSize(find.byType(Card)).height;
+
+    expect(compactHeight, lessThan(comfortableHeight));
+  });
+
+  testWidgets('long press callback fires when drag is disabled',
+      (tester) async {
+    var didLongPress = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: BoardItemTile(
+              item: item,
+              columns: columns,
+              allItems: [parent, item],
+              focused: false,
+              selected: false,
+              childCount: 0,
+              density: BoardCardDensity.compact,
+              allowDrag: false,
+              onSelect: () {},
+              onLongPress: () {
+                didLongPress = true;
+              },
+              onAddChildAction: () {},
+              onEdit: () {},
+              onViewDetails: () {},
+              onToggleArchive: () {},
+              onMoveToColumn: (_) async {},
+              onJumpToParent: () {},
+              canModifyItems: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.longPress(find.byType(BoardItemTile));
+    await tester.pump();
+
+    expect(didLongPress, isTrue);
+  });
+
+  testWidgets('overflow menu exposes add child item shortcut', (tester) async {
+    var didRequestChildCreate = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: BoardItemTile(
+              item: item,
+              columns: columns,
+              allItems: [parent, item],
+              focused: false,
+              selected: false,
+              childCount: 0,
+              density: BoardCardDensity.comfortable,
+              onSelect: () {},
+              onAddChildAction: () {
+                didRequestChildCreate = true;
+              },
+              onEdit: () {},
+              onViewDetails: () {},
+              onToggleArchive: () {},
+              onMoveToColumn: (_) async {},
+              onJumpToParent: () {},
+              canModifyItems: true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    tester
+        .state<PopupMenuButtonState<String>>(
+            find.byType(PopupMenuButton<String>))
+        .showButtonMenu();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add child item'), findsOneWidget);
+
+    await tester.tap(find.text('Add child item'));
+    await tester.pumpAndSettle();
+
+    expect(didRequestChildCreate, isTrue);
   });
 }

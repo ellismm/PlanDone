@@ -1,18 +1,29 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plandone/src/core/outbox/in_memory_outbox_queue.dart';
+import 'package:plandone/src/features/auth/presentation/auth_controller.dart';
 import 'package:plandone/src/features/board/data/local/in_memory_local_board_store.dart';
+import 'package:plandone/src/features/board/data/repositories/board_filter_preset_repository_impl.dart';
+import 'package:plandone/src/features/board/data/repositories/work_item_activity_repository_impl.dart';
+import 'package:plandone/src/features/board/domain/models/work_item_type.dart';
 import 'package:plandone/src/features/board/presentation/board_controller.dart';
 
 void main() {
-  ProviderContainer _container() {
+  ProviderContainer buildContainer() {
     return ProviderContainer(
       overrides: [
+        activeUserIdProvider.overrideWith((ref) => 'user-1'),
         localBoardStoreProvider.overrideWith(
           (ref) => InMemoryLocalBoardStore(currentUserId: 'user-1'),
         ),
         outboxQueueProvider.overrideWith(
           (ref) => InMemoryOutboxQueue(),
+        ),
+        workItemActivityRepositoryProvider.overrideWith(
+          (ref) => InMemoryWorkItemActivityRepository(),
+        ),
+        boardFilterPresetRepositoryProvider.overrideWith(
+          (ref) => InMemoryBoardFilterPresetRepository(),
         ),
       ],
     );
@@ -20,11 +31,12 @@ void main() {
 
   test('save + apply filter preset restores canonical filter context',
       () async {
-    final container = _container();
+    final container = buildContainer();
     addTearDown(container.dispose);
 
-    container.read(boardVisibilityFilterProvider.notifier).state =
-        BoardVisibilityFilter.actionsOnly;
+    container.read(boardVisibilityFilterProvider.notifier).state = {
+      WorkItemType.action
+    };
     container.read(boardItemStateFilterProvider.notifier).state =
         BoardItemStateFilter.urgent;
     container.read(boardTagFilterProvider.notifier).state = 'phase11';
@@ -41,7 +53,7 @@ void main() {
         .saveCurrentFilterPreset(name: 'My Preset');
 
     container.read(boardVisibilityFilterProvider.notifier).state =
-        BoardVisibilityFilter.allItems;
+        <WorkItemType>{};
     container.read(boardItemStateFilterProvider.notifier).state =
         BoardItemStateFilter.any;
     container.read(boardTagFilterProvider.notifier).state = '';
@@ -53,8 +65,10 @@ void main() {
 
     await container.read(boardControllerProvider).applyFilterPreset(saved);
 
-    expect(container.read(boardVisibilityFilterProvider),
-        BoardVisibilityFilter.actionsOnly);
+    expect(
+      container.read(boardVisibilityFilterProvider),
+      {WorkItemType.action},
+    );
     expect(container.read(boardItemStateFilterProvider),
         BoardItemStateFilter.urgent);
     expect(container.read(boardTagFilterProvider), 'phase11');
@@ -66,7 +80,7 @@ void main() {
   });
 
   test('delete filter preset removes it from stored list', () async {
-    final container = _container();
+    final container = buildContainer();
     addTearDown(container.dispose);
 
     final controller = container.read(boardControllerProvider);
@@ -76,5 +90,81 @@ void main() {
 
     final presets = await container.read(boardFilterPresetsProvider.future);
     expect(presets.where((p) => p.presetId == saved.presetId), isEmpty);
+  });
+
+  test('setPlanningView resets hierarchy mode to full-tree context', () {
+    final container = buildContainer();
+    addTearDown(container.dispose);
+
+    container.read(boardVisibilityFilterProvider.notifier).state = {
+      WorkItemType.action
+    };
+    container.read(boardItemStateFilterProvider.notifier).state =
+        BoardItemStateFilter.blocked;
+    container.read(boardTagFilterProvider.notifier).state = 'tagged';
+    container.read(boardTextQueryProvider.notifier).state = 'search';
+    container.read(focusModeEnabledProvider.notifier).state = true;
+    container.read(focusedItemIdProvider.notifier).state = 'a-3';
+    container.read(showOverdueOnlyProvider.notifier).state = true;
+    container.read(showDueSoonOnlyProvider.notifier).state = true;
+    container.read(showArchivedOnlyProvider.notifier).state = true;
+    container.read(collapsedHierarchyItemIdsProvider.notifier).state = {'g-1'};
+
+    container
+        .read(boardControllerProvider)
+        .setPlanningView(BoardPlanningView.hierarchy);
+
+    expect(
+        container.read(boardPlanningViewProvider), BoardPlanningView.hierarchy);
+    expect(container.read(boardVisibilityFilterProvider), isEmpty);
+    expect(
+        container.read(boardItemStateFilterProvider), BoardItemStateFilter.any);
+    expect(container.read(boardTagFilterProvider), isEmpty);
+    expect(container.read(boardTextQueryProvider), isEmpty);
+    expect(container.read(focusModeEnabledProvider), isFalse);
+    expect(container.read(focusedItemIdProvider), isNull);
+    expect(container.read(showOverdueOnlyProvider), isFalse);
+    expect(container.read(showDueSoonOnlyProvider), isFalse);
+    expect(container.read(showArchivedOnlyProvider), isFalse);
+    expect(container.read(collapsedHierarchyItemIdsProvider), isEmpty);
+  });
+
+  test('clearFocusedItem clears focus selection and focus mode', () {
+    final container = buildContainer();
+    addTearDown(container.dispose);
+
+    container.read(focusedItemIdProvider.notifier).state = 'a-3';
+    container.read(focusModeEnabledProvider.notifier).state = true;
+
+    container.read(boardControllerProvider).clearFocusedItem();
+
+    expect(container.read(focusedItemIdProvider), isNull);
+    expect(container.read(focusModeEnabledProvider), isFalse);
+  });
+
+  test('kanban doing auto-focus resets when leaving and re-entering kanban',
+      () {
+    final container = buildContainer();
+    addTearDown(container.dispose);
+
+    expect(container.read(lastAutoFocusedDoingBoardIdProvider), isNull);
+
+    container.read(lastAutoFocusedDoingBoardIdProvider.notifier).state =
+        defaultBoardId;
+    expect(
+      container.read(lastAutoFocusedDoingBoardIdProvider),
+      defaultBoardId,
+    );
+
+    container
+        .read(boardControllerProvider)
+        .setPlanningView(BoardPlanningView.hierarchy);
+    expect(container.read(lastAutoFocusedDoingBoardIdProvider), isNull);
+
+    container.read(lastAutoFocusedDoingBoardIdProvider.notifier).state =
+        defaultBoardId;
+    container.read(boardWorkspaceSurfaceProvider.notifier).state =
+        BoardWorkspaceSurface.inbox;
+    expect(container.read(lastAutoFocusedDoingBoardIdProvider), isNull);
   });
 }

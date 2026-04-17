@@ -57,6 +57,7 @@ class WorkItems extends Table {
   TextColumn get boardId => text()();
   TextColumn get title => text()();
   TextColumn get type => text()();
+  RealColumn get sortOrder => real().withDefault(const Constant(0))();
   TextColumn get parentId => text().nullable()();
   TextColumn get columnId => text()();
   TextColumn get description => text().nullable()();
@@ -84,7 +85,7 @@ class BoardDatabase extends _$BoardDatabase {
   BoardDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -225,14 +226,41 @@ WHERE kind = 'custom' AND is_done_state = 0 AND is_blocked_state = 0 AND is_canc
               // Column may already exist.
             }
           }
+          if (from < 7) {
+            try {
+              await m.database.customStatement(
+                'ALTER TABLE work_items ADD COLUMN sort_order REAL NOT NULL DEFAULT 0',
+              );
+            } catch (_) {
+              // Column may already exist.
+            }
+          }
         },
       );
 }
 
 LazyDatabase _openConnection(String databaseName) {
   return LazyDatabase(() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, databaseName));
+    final file = await resolveBoardDatabaseFile(databaseName);
     return NativeDatabase.createInBackground(file);
   });
+}
+
+Future<File> resolveBoardDatabaseFile(String databaseName) async {
+  final dir = await getApplicationDocumentsDirectory();
+  return File(p.join(dir.path, databaseName));
+}
+
+Future<void> deleteBoardDatabaseFile(String databaseName) async {
+  final file = await resolveBoardDatabaseFile(databaseName);
+  final relatedFiles = <File>[
+    file,
+    File('${file.path}-wal'),
+    File('${file.path}-shm'),
+  ];
+  for (final candidate in relatedFiles) {
+    if (await candidate.exists()) {
+      await candidate.delete();
+    }
+  }
 }

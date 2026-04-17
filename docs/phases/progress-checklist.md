@@ -195,7 +195,14 @@ Use this file as your execution tracker while prompting Cline phase-by-phase.
 ## Final Release Readiness
 
 - [ ] End-to-end manual QA across offline/online transitions
-- [ ] Security/rules test pass recorded
-- [ ] `flutter test` clean pass
-- [ ] Key docs reviewed and consistent
-- [ ] Known limitations/backlog documented
+- [x] Security/rules test pass recorded
+- [x] `flutter test` clean pass
+- [x] Key docs reviewed and consistent
+- [x] Known limitations/backlog documented
+
+Supporting docs:
+
+- [personal-mvp-closeout.md](/home/messay/coding/own/PlanDone/docs/phases/personal-mvp-closeout.md)
+- [personal-runtime-profile.md](/home/messay/coding/own/PlanDone/docs/ops/personal-runtime-profile.md)
+- [personal-mvp-smoke-checklist.md](/home/messay/coding/own/PlanDone/docs/ops/personal-mvp-smoke-checklist.md)
+- [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-limitations.md)

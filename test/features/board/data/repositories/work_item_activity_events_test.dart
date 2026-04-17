@@ -98,4 +98,50 @@ void main() {
       isTrue,
     );
   });
+
+  test('board activity list returns events across items with since filtering',
+      () async {
+    final activityRepo = InMemoryWorkItemActivityRepository();
+
+    await activityRepo.append(
+      WorkItemActivityEvent(
+        eventId: 'evt-1',
+        boardId: 'board-1',
+        itemId: 'item-a',
+        type: WorkItemActivityType.created,
+        actorUserId: 'user-1',
+        createdAt: DateTime(2026, 3, 10, 9),
+      ),
+    );
+    await activityRepo.append(
+      WorkItemActivityEvent(
+        eventId: 'evt-2',
+        boardId: 'board-1',
+        itemId: 'item-b',
+        type: WorkItemActivityType.reopened,
+        actorUserId: 'user-1',
+        createdAt: DateTime(2026, 3, 12, 9),
+      ),
+    );
+    await activityRepo.append(
+      WorkItemActivityEvent(
+        eventId: 'evt-3',
+        boardId: 'board-2',
+        itemId: 'item-x',
+        type: WorkItemActivityType.updated,
+        actorUserId: 'user-2',
+        createdAt: DateTime(2026, 3, 13, 9),
+      ),
+    );
+
+    final events = await activityRepo.listForBoard(
+      boardId: 'board-1',
+      since: DateTime(2026, 3, 11),
+      limit: 10,
+    );
+
+    expect(events, hasLength(1));
+    expect(events.single.eventId, 'evt-2');
+    expect(events.single.itemId, 'item-b');
+  });
 }

@@ -20,6 +20,10 @@ void main() {
     expect(restored.interval, 3);
     expect(restored.intervalDays, 3);
     expect(restored.completionGated, isTrue);
+    expect(
+      restored.missedWindowPolicy,
+      WorkItemRecurrenceMissedWindowPolicy.nextEligible,
+    );
     expect(restored.rootItemId, 'item-1');
     expect(restored.sequence, 2);
   });
@@ -31,5 +35,21 @@ void main() {
       rootItemId: 'root',
     );
     expect(recurrence.intervalDays, 14);
+  });
+
+  test('missed window policy round-trip preserves explicit value', () {
+    final recurrence = WorkItemRecurrence(
+      cadence: WorkItemRecurrenceCadence.daily,
+      interval: 1,
+      missedWindowPolicy: WorkItemRecurrenceMissedWindowPolicy.singleStep,
+      rootItemId: 'root',
+    );
+
+    final restored = WorkItemRecurrence.fromMap(recurrence.toMap());
+
+    expect(
+      restored?.missedWindowPolicy,
+      WorkItemRecurrenceMissedWindowPolicy.singleStep,
+    );
   });
 }

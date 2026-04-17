@@ -319,6 +319,9 @@ class FirestoreSyncRemoteAdapter implements SyncRemoteAdapter {
           'type': (op.payload['type'] as String?) ??
               (currentData['type'] as String?) ??
               'task',
+          'sortOrder': (op.payload['sortOrder'] as num?)?.toDouble() ??
+              (currentData['sortOrder'] as num?)?.toDouble() ??
+              0,
           'parentId': op.payload.containsKey('parentId')
               ? op.payload['parentId']
               : currentData['parentId'],

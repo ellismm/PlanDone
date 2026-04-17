@@ -1,261 +1,127 @@
 # PlanDone
 
-PlanDone is an **offline-first**, collaborative Kanban app with a flexible 4-level hierarchy:
+PlanDone is an offline-first planning app built with Flutter around a local-first source of truth, optional Firebase auth/sync, and a flexible four-level hierarchy:
 
 - Goal
 - Project
 - Task
 - Action
 
-This repository is now bootstrapped with a Flutter-friendly starter structure aligned to the docs in `docs/`:
+The product is no longer a Phase 1 starter. It now covers the core daily-use personal MVP workflow:
 
-- clean layering direction (`UI -> State -> Domain -> Repository -> Data Sources`)
-- local-first write flow
-- outbox operation queue abstraction
-- basic Kanban board UI stub with optimistic updates
+- route-based workspace, configuration, and planning surfaces
+- semantic workflow columns instead of name-coupled done logic
+- hierarchy, backlog, focus, and kanban planning views
+- quick capture inbox + triage
+- saved filter presets
+- item activity history
+- undo for high-impact actions
+- compact/comfortable card density controls
+- read-first item details + metadata system
+- hierarchy color grouping and parent-path preferences
+- deterministic due/start reminders with snooze and mute
+- completion-gated recurring tasks with missed-window policies
+- deterministic non-AI autofill suggestions
+- JSON backup/export and restore-as-new-board
 
-## Phase 1 foundation status
+## Current MVP posture
 
-Phase 1 now includes:
+PlanDone is positioned as a **daily-use personal MVP**, not a small-team production platform yet.
 
-- Auth-gated boot flow (unauthenticated -> auth, authenticated -> board)
-- Auth feature layering (`UI -> State -> Domain -> Repository -> Data Source`)
-- Email/password + Google sign-in APIs wired through Firebase-capable data source
-- Sign-out support from board shell
-- User-scoped board runtime context
-- Drift default local runtime path (in-memory default in tests)
+### Implemented MVP defaults
 
-## Current status
+- `UI -> State -> Domain -> Repository -> Data Sources` layering remains intact.
+- Local Drift storage remains the UI source of truth when persistence is enabled.
+- Sync remains `local -> outbox -> Firestore -> hydration -> local`.
+- Android reminders use **local scheduled notifications** for due/start alerts, including background/closed-app delivery.
+- Recurrence is intentionally **completion-gated only** for the MVP.
+- Backup/restore is intentionally **manual JSON export/import** with restore into a new board.
+- AI remains deferred.
 
-This is a project starter (Phase 1 foundation), not full production functionality yet.
+### Known limitations
 
-Implemented:
+See [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-limitations.md) for the current honest gap list.
 
-- Initial app shell (`MaterialApp` + Riverpod)
-- Domain models for `Board`, `Column`, `WorkItem`
-- Local store abstraction and in-memory implementation
-- Outbox queue abstraction and in-memory implementation
-- Repository implementing local-write + queue-op flow
-- Simple Kanban screen that can move items between columns
+## Recommended personal runtime profile
 
-## Run (after creating platform folders)
-
-If Flutter is installed:
-
-1. Create standard Flutter platform folders if needed:
-
-```bash
-flutter create .
-```
-
-2. Get packages:
+For daily use with persistent local storage and Firebase auth/sync:
 
 ```bash
-flutter pub get
+flutter run \
+  --dart-define=USE_IN_MEMORY_LOCAL_STORE=false \
+  --dart-define=USE_FIREBASE_AUTH=true \
+  --dart-define=USE_FIREBASE_SYNC=true
 ```
 
-3. Run:
+Notes:
+
+- Local Android reminders do **not** require `USE_FIREBASE_PUSH=true`.
+- `USE_FIREBASE_PUSH=true` is only needed if you want optional FCM device-token registration/manual push testing.
+- Full runtime guidance: [personal-runtime-profile.md](/home/messay/coding/own/PlanDone/docs/ops/personal-runtime-profile.md)
+
+## Validation
+
+Core validation commands:
 
 ```bash
-flutter run
+npm ci
+npm run test:rules
+flutter analyze
+flutter test
+flutter test --concurrency=1
+flutter build apk --release
 ```
 
-### Runtime toggles
-
-- `USE_IN_MEMORY_LOCAL_STORE=true` -> force in-memory board/theme stores (dev/test)
-- `USE_FIREBASE_AUTH=true` -> enable Firebase auth runtime path
-- `USE_FIREBASE_SYNC=true` -> enable Firestore sync adapter + listener hydration path (Phase 2)
-
-Example:
-
-```bash
-flutter run --dart-define=USE_FIREBASE_AUTH=true
-```
-
-Enable auth + sync together:
-
-```bash
-flutter run --dart-define=USE_FIREBASE_AUTH=true --dart-define=USE_FIREBASE_SYNC=true
-```
-
-### Deploy latest APK to Android device
-
-This script always rebuilds before install so deployment uses current workspace code:
+Physical Android deploy:
 
 ```bash
 scripts/deploy_android_latest.sh
 ```
 
-Optional explicit target:
+Android release signing:
 
-```bash
-scripts/deploy_android_latest.sh <device-id>
-```
+- Local debug/deploy builds default to the legacy Android package
+  `com.example.plandone` so existing device-local account/workspace data stays
+  available during MVP testing.
+- For a clean external release id, build with
+  `PLANDONE_APPLICATION_ID=com.plandone.app` or Gradle property
+  `-PplandoneApplicationId=com.plandone.app`.
+- `flutter build apk --release` supports real signing through root-level
+  `key.properties` or environment variables:
+  `PLANDONE_RELEASE_STORE_FILE`, `PLANDONE_RELEASE_STORE_PASSWORD`,
+  `PLANDONE_RELEASE_KEY_ALIAS`, and `PLANDONE_RELEASE_KEY_PASSWORD`.
+- If no release signing values are present, local release builds fall back to
+  debug signing so validation builds can still complete. Use real signing for
+  any build distributed outside local testing.
 
-## Phase 2 sync contract (offline-first loop)
+Manual device regression steps:
 
-Implemented loop:
+- [personal-mvp-smoke-checklist.md](/home/messay/coding/own/PlanDone/docs/ops/personal-mvp-smoke-checklist.md)
 
-`local write -> outbox queue -> SyncEngine push to Firestore -> Firestore listeners hydrate Drift -> UI reads local`
+## Operations and setup docs
 
-### Outbox payload contract
+- Environment matrix: [environment-matrix.md](/home/messay/coding/own/PlanDone/docs/ops/environment-matrix.md)
+- Android auth setup: [android-auth-setup.md](/home/messay/coding/own/PlanDone/docs/ops/android-auth-setup.md)
+- Backend runbook: [runbook.md](/home/messay/coding/own/PlanDone/docs/ops/runbook.md)
+- Optional FCM extension path: [push-notifications-phone-setup.md](/home/messay/coding/own/PlanDone/docs/ops/push-notifications-phone-setup.md)
+- Personal MVP closeout summary: [personal-mvp-closeout.md](/home/messay/coding/own/PlanDone/docs/phases/personal-mvp-closeout.md)
 
-- Every outbox payload includes:
-  - `version` (currently `1`)
-  - `boardId`
-- Work-item write payloads include deterministic fields for replay/debugging:
-  - `itemId`, `columnId` (plus legacy-compatible `toColumnId`), `updatedAt`
-- Operation IDs are deterministic enough for debugging and idempotent remote markers:
-  - `op-<micros>-<type>-<entity>-<entityId>`
+## Phase docs
 
-### Retry + failure handling
+Roadmap and phase-by-phase docs live in [`docs/phases/`](/home/messay/coding/own/PlanDone/docs/phases) with prompt companions in [`docs/prompts/`](/home/messay/coding/own/PlanDone/docs/prompts).
 
-- Failed operations remain in queue.
-- Metadata persisted in outbox:
-  - `attemptCount`
-  - `lastError`
-  - `nextAttemptAt`
-  - `lastAttemptAt`
-- Exponential backoff with max cap is applied by `SyncEngine`.
-- Force retry path is available via `syncPending(ignoreRetrySchedule: true)`.
+Recommended starting points:
 
-### Conflict strategy (v1)
+- [roadmap.md](/home/messay/coding/own/PlanDone/docs/phases/roadmap.md)
+- [progress-checklist.md](/home/messay/coding/own/PlanDone/docs/phases/progress-checklist.md)
+- [personal-mvp-closeout.md](/home/messay/coding/own/PlanDone/docs/phases/personal-mvp-closeout.md)
 
-- LWW (Last Write Wins) via `updatedAtMicros` comparison in Firestore adapter.
-- Older operations do not overwrite newer remote state.
+## Deferred intentionally
 
-### Idempotency
+These are not blockers for the current personal MVP:
 
-- Firestore adapter writes per-operation apply markers at:
-  - `boards/{boardId}/_appliedOps/{operationId}`
-- Duplicate operation IDs are skipped remotely.
-
-## Troubleshooting sync
-
-- **Outbox not draining**
-  - Verify `USE_FIREBASE_SYNC=true` and Firebase initialization/config.
-  - Check pending operations from UI outbox sheet.
-  - Trigger manual sync from UI (`Sync now`).
-- **Repeated failures**
-  - Inspect `lastError`, `attemptCount`, `nextAttemptAt` in outbox table.
-  - Use force retry path (manual sync) to bypass scheduled delay.
-- **Collaborator updates not visible**
-  - Ensure Drift path is active (`USE_IN_MEMORY_LOCAL_STORE=false`) and hydration listener is enabled.
-  - Confirm listener targets the active board scope.
-
-## Phase 3 collaboration + permissions
-
-Phase 3 is implemented with role-governed collaboration across domain/UI/backend layers.
-
-### Permission matrix (implemented)
-
-| Role | Read board | Modify work items | Manage board (name/columns/validation) | Manage members (invite/role/remove) | Accept own pending invite |
-| --- | --- | --- | --- | --- | --- |
-| viewer | ✅ | ❌ | ❌ | ❌ | n/a |
-| member | ✅ | ✅ | ❌ | ❌ | ✅ (only when pending) |
-| admin | ✅ | ✅ | ✅ | ✅ | n/a |
-| owner | ✅ | ✅ | ✅ | ✅ | n/a |
-
-### Denied-action behavior
-
-- **UI layer**
-  - Role-gated actions are disabled or intercepted with explicit feedback.
-  - Guarded actions surface `SnackBar` messages for permission and validation failures.
-  - Examples:
-    - Viewer/member trying board-management actions: `Current role cannot manage board settings.`
-    - Viewer trying item mutation: `Current role cannot modify items in this board.`
-    - Unauthorized member governance: `Current role cannot manage board members.`
-
-- **Domain/repository layer**
-  - `BoardRepositoryImpl` centralizes capability checks via `_requireCapability(...)`.
-  - Denials throw `BoardPermissionDeniedException`.
-  - Validation settings are enforced by `BoardValidationPolicy` and throw `BoardValidationException`.
-
-- **Backend/rules layer**
-  - Firestore rules enforce the same role model on writes.
-  - Owner role is protected against downgrade/removal.
-  - Pending invites (`joinedAtEpochMillis <= 0`) are prevented from item mutation until accepted.
-
-- **Sync/outbox layer**
-  - Firestore `permission-denied` maps to `SyncRemotePermissionDeniedException`.
-  - `SyncEngine` treats permission denied as non-retryable and drops the op from queue.
-
-### Board validation settings
-
-Per-board toggles are supported and persisted in `board.validationSettings`:
-
-- `requireParentForProjects`
-- `requireParentForTasks`
-- `requireParentForActions`
-- `enforceParentTypeOrder`
-
-Admins/owners can edit these via **Validation** action in the board UI.
-
-### Firestore rules + emulator tests
-
-Added artifacts:
-
-- `firestore.rules`
-- `firestore.indexes.json`
-- `firebase.json` (emulator config, Firestore port `8085`)
-- `test/firestore/firestore_rules_test.js`
-- `package.json` scripts for rules tests
-
-Run:
-
-```bash
-npm install
-npm run test:rules
-flutter test
-```
-
-## Phase 4 UX foundation + navigation
-
-Phase 4 introduces a route-based primary shell:
-
-- `/workspace` -> board execution workspace
-- `/board-configuration` -> board scope/settings/members/columns/validation/workflow
-- `/planning` -> planning entry point and planning-view selection
-
-This keeps `UI -> State -> Domain -> Repository -> Data Sources` intact while improving discoverability of common actions.
-
-## Phase 7 cloud/backend ops baseline
-
-Operational docs:
-
-- Environment matrix: `docs/ops/environment-matrix.md`
-- Backend runbook: `docs/ops/runbook.md`
-
-Common commands:
-
-```bash
-npm run test:rules
-npm run emulators:firestore
-FIREBASE_PROJECT=plandone-dev npm run deploy:firestore
-flutter analyze
-flutter test
-```
-
-## Firebase Auth setup (Phase 1)
-
-1. Create Firebase project and register Flutter app targets.
-2. Add Firebase config files for each platform.
-3. Enable auth providers in Firebase Console:
-   - Email/Password
-   - Google
-4. Add/generated Firebase options initialization if required by your environment.
-5. Run with auth enabled:
-
-```bash
-flutter run --dart-define=USE_FIREBASE_AUTH=true
-```
-
-> Note: If Firebase is not configured, keep `USE_FIREBASE_AUTH=false` (default) to use local in-memory auth for development.
-
-## Next steps
-
-1. Replace in-memory data sources with Drift local DB.
-2. Add outbox persistence and retry metadata.
-3. Add Firebase Auth + Firestore adapters.
-4. Add sync engine with idempotent operation processing.
-5. Add role-aware board membership and security-rule-aligned behavior.
+- AI/LLM-assisted breakdown and generation
+- automated backend-driven push reminder pipeline
+- complex calendar/RRULE recurrence semantics
+- merge-based import tooling
+- broader multi-user onboarding/release operations polish

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plandone/src/core/outbox/in_memory_outbox_queue.dart';
@@ -7,17 +9,19 @@ import 'package:plandone/src/features/board/data/local/in_memory_local_board_sto
 import 'package:plandone/src/features/board/presentation/board_controller.dart';
 
 class _FakeRemoteAdapter implements SyncRemoteAdapter {
-  _FakeRemoteAdapter({this.shouldFail = false});
+  _FakeRemoteAdapter({
+    this.completer,
+  });
 
-  final bool shouldFail;
+  final Completer<void>? completer;
   final List<String> appliedOperationIds = <String>[];
 
   @override
   Future<void> applyOperation(OutboxOperation operation) async {
-    if (shouldFail) {
-      throw Exception('network unavailable');
-    }
     appliedOperationIds.add(operation.id);
+    if (completer != null) {
+      await completer!.future;
+    }
   }
 }
 
@@ -95,5 +99,49 @@ void main() {
     expect(status.failedCount, 1);
     expect(status.nextRetryAt, isNotNull);
     expect(status.latestError, 'network timeout');
+  });
+
+  test('syncNow clears stale error as soon as a new attempt starts', () async {
+    final localStore = InMemoryLocalBoardStore(currentUserId: 'user-1');
+    final queue = InMemoryOutboxQueue();
+    final completer = Completer<void>();
+    final remote = _FakeRemoteAdapter(completer: completer);
+    final now = DateTime.now();
+
+    await queue.enqueue(
+      OutboxOperation(
+        id: 'op-sync-retry',
+        type: OutboxOperationType.update,
+        entity: 'workItem',
+        entityId: 'w-3',
+        payload: const {'version': 1, 'boardId': 'board-1'},
+        createdAt: now,
+      ),
+    );
+
+    final container = ProviderContainer(
+      overrides: [
+        localBoardStoreProvider.overrideWith((ref) => localStore),
+        outboxQueueProvider.overrideWith((ref) => queue),
+        syncRemoteAdapterProvider.overrideWith((ref) => remote),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    container.read(syncUiStateProvider.notifier).state = const SyncUiState(
+      lastError: 'Sync failed: network unavailable',
+    );
+
+    final syncFuture = container
+        .read(boardControllerProvider)
+        .syncNow(ignoreRetrySchedule: true);
+    await Future<void>.delayed(Duration.zero);
+
+    final syncingState = container.read(syncUiStateProvider);
+    expect(syncingState.isSyncing, isTrue);
+    expect(syncingState.lastError, isNull);
+
+    completer.complete();
+    await syncFuture;
   });
 }

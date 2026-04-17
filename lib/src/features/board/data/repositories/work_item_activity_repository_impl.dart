@@ -36,6 +36,23 @@ class InMemoryWorkItemActivityRepository implements WorkItemActivityRepository {
     if (events.length <= limit) return [...events];
     return events.take(limit).toList(growable: false);
   }
+
+  @override
+  Future<List<WorkItemActivityEvent>> listForBoard({
+    required String boardId,
+    DateTime? since,
+    int limit = 500,
+  }) async {
+    final boardPrefix = '$boardId::';
+    final events = _eventsByItemKey.entries
+        .where((entry) => entry.key.startsWith(boardPrefix))
+        .expand((entry) => entry.value)
+        .where((event) => since == null || !event.createdAt.isBefore(since))
+        .toList(growable: false)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    if (events.length <= limit) return events;
+    return events.take(limit).toList(growable: false);
+  }
 }
 
 class DriftWorkItemActivityRepository implements WorkItemActivityRepository {
@@ -142,6 +159,70 @@ class DriftWorkItemActivityRepository implements WorkItemActivityRepository {
             'missing-${DateTime.now().microsecondsSinceEpoch}',
         boardId: (data['board_id'] as String?) ?? boardId,
         itemId: (data['item_id'] as String?) ?? itemId,
+        type: type,
+        actorUserId: (data['actor_user_id'] as String?) ?? 'unknown',
+        createdAt: DateTime.fromMillisecondsSinceEpoch(
+          (data['created_at'] as int?) ?? 0,
+        ),
+        payload: payload,
+      );
+    }).toList(growable: false);
+  }
+
+  @override
+  Future<List<WorkItemActivityEvent>> listForBoard({
+    required String boardId,
+    DateTime? since,
+    int limit = 500,
+  }) async {
+    await _ensureTable();
+
+    final queryBuffer = StringBuffer()
+      ..write(
+        'SELECT event_id, board_id, item_id, event_type, actor_user_id, created_at, payload_json '
+        'FROM work_item_activity_events '
+        'WHERE board_id = ?',
+      );
+    final variables = <drift.Variable<Object>>[
+      drift.Variable<String>(boardId),
+    ];
+    if (since != null) {
+      queryBuffer.write(' AND created_at >= ?');
+      variables.add(
+        drift.Variable<int>(since.millisecondsSinceEpoch),
+      );
+    }
+    queryBuffer.write(
+      ' ORDER BY created_at DESC, event_id DESC '
+      'LIMIT ?',
+    );
+    variables.add(drift.Variable<int>(limit));
+
+    final rows = await _database
+        .customSelect(
+          queryBuffer.toString(),
+          variables: variables,
+        )
+        .get();
+
+    return rows.map((row) {
+      final data = row.data;
+      final typeName = (data['event_type'] as String?) ?? 'updated';
+      final type = WorkItemActivityType.values.firstWhere(
+        (entry) => entry.name == typeName,
+        orElse: () => WorkItemActivityType.updated,
+      );
+      final payloadJson = (data['payload_json'] as String?) ?? '{}';
+      final payload = (jsonDecode(payloadJson) as Map?)
+              ?.map((key, value) => MapEntry('$key', value))
+              .cast<String, Object?>() ??
+          const <String, Object?>{};
+
+      return WorkItemActivityEvent(
+        eventId: (data['event_id'] as String?) ??
+            'missing-${DateTime.now().microsecondsSinceEpoch}',
+        boardId: (data['board_id'] as String?) ?? boardId,
+        itemId: (data['item_id'] as String?) ?? 'unknown',
         type: type,
         actorUserId: (data['actor_user_id'] as String?) ?? 'unknown',
         createdAt: DateTime.fromMillisecondsSinceEpoch(

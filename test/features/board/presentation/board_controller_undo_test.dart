@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plandone/src/core/outbox/in_memory_outbox_queue.dart';
+import 'package:plandone/src/features/auth/presentation/auth_controller.dart';
 import 'package:plandone/src/features/board/data/local/in_memory_local_board_store.dart';
+import 'package:plandone/src/features/board/data/repositories/notification_preferences_repository_impl.dart';
+import 'package:plandone/src/features/board/data/repositories/work_item_activity_repository_impl.dart';
 import 'package:plandone/src/features/board/presentation/board_controller.dart';
 
 ProviderContainer _container() {
@@ -9,8 +12,15 @@ ProviderContainer _container() {
   final queue = InMemoryOutboxQueue();
   return ProviderContainer(
     overrides: [
+      activeUserIdProvider.overrideWith((ref) => 'user-1'),
       localBoardStoreProvider.overrideWith((ref) => localStore),
       outboxQueueProvider.overrideWith((ref) => queue),
+      workItemActivityRepositoryProvider.overrideWith(
+        (ref) => InMemoryWorkItemActivityRepository(),
+      ),
+      notificationPreferencesRepositoryProvider.overrideWith(
+        (ref) => InMemoryNotificationPreferencesRepository(userId: 'user-1'),
+      ),
     ],
   );
 }

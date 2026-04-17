@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,10 +36,12 @@ class BoardItemTile extends ConsumerWidget {
     required this.onJumpToParent,
     required this.canModifyItems,
     required this.density,
+    this.allowDrag = true,
     this.accentColor,
     this.showCompactParentSubtitle = false,
     this.parentPathMode = HierarchyParentPathMode.visible,
     this.selected = false,
+    this.onLongPress,
     this.onToggleSelected,
     this.onReparent,
     this.onTriage,
@@ -61,8 +65,10 @@ class BoardItemTile extends ConsumerWidget {
   final VoidCallback? onTriage;
   final VoidCallback? onDelete;
   final VoidCallback? onJumpToParent;
+  final VoidCallback? onLongPress;
   final bool canModifyItems;
   final BoardCardDensity density;
+  final bool allowDrag;
   final Color? accentColor;
   final bool showCompactParentSubtitle;
   final HierarchyParentPathMode parentPathMode;
@@ -98,22 +104,36 @@ class BoardItemTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final activeDraggedItemNotifier =
+        ref.read(activeDraggedItemProvider.notifier);
+    final activeDraggedItemPositionNotifier =
+        ref.read(activeDraggedItemPositionProvider.notifier);
+    if (!allowDrag) {
+      return _buildCard(context, ref);
+    }
     return LongPressDraggable<WorkItem>(
       data: item,
       maxSimultaneousDrags: canModifyItems ? null : 0,
       dragAnchorStrategy: pointerDragAnchorStrategy,
       feedbackOffset: Offset.zero,
       onDragStarted: () {
-        ref.read(activeDraggedItemProvider.notifier).state = item;
+        activeDraggedItemNotifier.state = item;
+        activeDraggedItemPositionNotifier.state = null;
+      },
+      onDragUpdate: (details) {
+        activeDraggedItemPositionNotifier.state = details.globalPosition;
       },
       onDragEnd: (_) {
-        ref.read(activeDraggedItemProvider.notifier).state = null;
+        activeDraggedItemNotifier.state = null;
+        activeDraggedItemPositionNotifier.state = null;
       },
       onDraggableCanceled: (_, __) {
-        ref.read(activeDraggedItemProvider.notifier).state = null;
+        activeDraggedItemNotifier.state = null;
+        activeDraggedItemPositionNotifier.state = null;
       },
       onDragCompleted: () {
-        ref.read(activeDraggedItemProvider.notifier).state = null;
+        activeDraggedItemNotifier.state = null;
+        activeDraggedItemPositionNotifier.state = null;
       },
       feedback: Transform.translate(
         offset: const Offset(-50, -50),
@@ -257,7 +277,7 @@ class BoardItemTile extends ConsumerWidget {
           ),
           const PopupMenuItem(
             value: menuActionAddChild,
-            child: Text('Add child action'),
+            child: Text('Add child item'),
           ),
           PopupMenuItem(
             value: menuActionToggleArchive,
@@ -295,154 +315,117 @@ class BoardItemTile extends ConsumerWidget {
       return SizedBox(width: 28, height: 28, child: button);
     }
 
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: 0, vertical: compact ? 2 : 4),
-      color: selected
-          ? Theme.of(context).colorScheme.secondaryContainer
-          : (focused ? Theme.of(context).colorScheme.primaryContainer : null),
-      child: InkWell(
-        onTap: onSelect,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 10 : 12,
-            vertical: compact ? 5 : 8,
-          ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (accentColor != null)
-                  Container(
-                    width: compact ? 3 : 4,
-                    margin: EdgeInsets.only(right: compact ? 6 : 8),
-                    decoration: BoxDecoration(
-                      color: accentColor,
-                      borderRadius: BorderRadius.circular(2),
+    final clearFocusOnTapOutside = focused &&
+        ref.watch(boardPlanningViewProvider) != BoardPlanningView.hierarchy;
+
+    return TapRegion(
+      enabled: clearFocusOnTapOutside,
+      groupId: boardItemFocusTapRegionGroup,
+      onTapOutside: (_) {
+        ref.read(boardControllerProvider).clearFocusedItem();
+      },
+      child: Card(
+        margin:
+            EdgeInsets.symmetric(horizontal: 0, vertical: compact ? 0.5 : 4),
+        color: selected
+            ? Theme.of(context).colorScheme.secondaryContainer
+            : (focused ? Theme.of(context).colorScheme.primaryContainer : null),
+        child: InkWell(
+          key: ValueKey('board-item-tap-${item.boardId}-${item.itemId}'),
+          onTap: onSelect,
+          onDoubleTap: () {
+            onSelect();
+            onViewDetails();
+          },
+          onLongPress: onLongPress,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 9 : 12,
+              vertical: compact ? 3 : 8,
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (accentColor != null)
+                    Container(
+                      width: compact ? 3 : 4,
+                      margin: EdgeInsets.only(right: compact ? 6 : 8),
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                if (onToggleSelected != null && !compact)
-                  IconButton(
-                    tooltip: selected ? 'Deselect item' : 'Select item',
-                    onPressed: onToggleSelected,
-                    visualDensity: VisualDensity.compact,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 28, height: 28),
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      selected
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      size: 18,
+                  if (onToggleSelected != null && !compact)
+                    IconButton(
+                      tooltip: selected ? 'Deselect item' : 'Select item',
+                      onPressed: onToggleSelected,
+                      visualDensity: VisualDensity.compact,
+                      constraints:
+                          const BoxConstraints.tightFor(width: 28, height: 28),
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        selected
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        size: 18,
+                      ),
                     ),
-                  ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (compact) ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Tooltip(
-                                message: item.title,
-                                child: Text(
-                                  item.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: focused
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .onPrimaryContainer
-                                            : Theme.of(context)
-                                                .colorScheme
-                                                .onSurface,
-                                      ),
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: item.columnId == doneColumnId
-                                  ? 'Mark not done'
-                                  : 'Mark done',
-                              onPressed: toggleDoneAction,
-                              visualDensity: VisualDensity.compact,
-                              constraints: const BoxConstraints.tightFor(
-                                  width: 30, height: 30),
-                              padding: EdgeInsets.zero,
-                              icon: Icon(
-                                item.columnId == doneColumnId
-                                    ? Icons.remove_done_outlined
-                                    : Icons.check_circle_outline,
-                                size: 16,
-                              ),
-                            ),
-                            buildOverflowMenu(compactMenu: true),
-                          ],
-                        ),
-                        if (parent != null &&
-                            parentPathMode !=
-                                HierarchyParentPathMode.hidden) ...[
-                          const SizedBox(height: 1),
-                          InkWell(
-                            onTap: onJumpToParent,
-                            child: Text(
-                              showCompactParentSubtitle
-                                  ? (parentPathMode ==
-                                          HierarchyParentPathMode.visible
-                                      ? 'Parent: ${parent.title}'
-                                      : parent.title)
-                                  : 'Parent',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant
-                                        .withValues(
-                                          alpha: parentPathMode ==
-                                                  HierarchyParentPathMode.subtle
-                                              ? 0.8
-                                              : 1,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (compact) ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Tooltip(
+                                  message: item.title,
+                                  child: Text(
+                                    item.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: focused
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .onPrimaryContainer
+                                              : Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
                                         ),
                                   ),
-                            ),
-                          ),
-                        ],
-                      ] else ...[
-                        Tooltip(
-                          message: item.title,
-                          child: Text(
-                            item.title,
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: focused
-                                      ? Theme.of(context)
-                                          .colorScheme
-                                          .onPrimaryContainer
-                                      : Theme.of(context).colorScheme.onSurface,
                                 ),
+                              ),
+                              IconButton(
+                                tooltip: item.columnId == doneColumnId
+                                    ? 'Mark not done'
+                                    : 'Mark done',
+                                onPressed: toggleDoneAction,
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints.tightFor(
+                                    width: 26, height: 26),
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  item.columnId == doneColumnId
+                                      ? Icons.remove_done_outlined
+                                      : Icons.check_circle_outline,
+                                  size: 14,
+                                ),
+                              ),
+                              buildOverflowMenu(compactMenu: true),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        if (parent != null &&
-                            parentPathMode != HierarchyParentPathMode.hidden)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: InkWell(
+                          if (parent != null &&
+                              parentPathMode !=
+                                  HierarchyParentPathMode.hidden) ...[
+                            const SizedBox(height: 0.5),
+                            InkWell(
                               onTap: onJumpToParent,
                               child: Text(
                                 parentPathMode ==
@@ -457,44 +440,54 @@ class BoardItemTile extends ConsumerWidget {
                                     ?.copyWith(
                                       color: Theme.of(context)
                                           .colorScheme
-                                          .onSurfaceVariant,
-                                      decoration: parentPathMode ==
-                                              HierarchyParentPathMode.visible
-                                          ? TextDecoration.underline
-                                          : TextDecoration.none,
+                                          .onSurfaceVariant
+                                          .withValues(
+                                            alpha: parentPathMode ==
+                                                    HierarchyParentPathMode
+                                                        .subtle
+                                                ? 0.8
+                                                : 1,
+                                          ),
                                     ),
                               ),
                             ),
+                          ],
+                        ] else ...[
+                          Tooltip(
+                            message: item.title,
+                            child: Text(
+                              item.title,
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: focused
+                                        ? Theme.of(context)
+                                            .colorScheme
+                                            .onPrimaryContainer
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                  ),
+                            ),
                           ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withValues(alpha: 0.45),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              Text(
-                                item.type.name.toUpperCase(),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                              if (childCount > 0)
-                                Text(
-                                  'Children: $childCount',
+                          const SizedBox(height: 6),
+                          if (parent != null &&
+                              parentPathMode != HierarchyParentPathMode.hidden)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: InkWell(
+                                onTap: onJumpToParent,
+                                child: Text(
+                                  parentPathMode ==
+                                          HierarchyParentPathMode.visible
+                                      ? 'Parent: ${parent.title}'
+                                      : parent.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelSmall
@@ -502,65 +495,110 @@ class BoardItemTile extends ConsumerWidget {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurfaceVariant,
+                                        decoration: parentPathMode ==
+                                                HierarchyParentPathMode.visible
+                                            ? TextDecoration.underline
+                                            : TextDecoration.none,
                                       ),
                                 ),
-                              if (_isOverdue)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .errorContainer,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    'OVERDUE',
+                              ),
+                            ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Text(
+                                  item.type.name.toUpperCase(),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                if (childCount > 0)
+                                  Text(
+                                    'Children: $childCount',
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall
                                         ?.copyWith(
                                           color: Theme.of(context)
                                               .colorScheme
-                                              .onErrorContainer,
-                                          fontWeight: FontWeight.w700,
+                                              .onSurfaceVariant,
                                         ),
                                   ),
-                                ),
-                            ],
+                                if (_isOverdue)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .errorContainer,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      'OVERDUE',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onErrorContainer,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: item.columnId == doneColumnId
-                                    ? 'Mark not done'
-                                    : 'Mark done',
-                                onPressed: toggleDoneAction,
-                                visualDensity: VisualDensity.compact,
-                                constraints: const BoxConstraints.tightFor(
-                                    width: 32, height: 32),
-                                padding: EdgeInsets.zero,
-                                icon: Icon(
-                                  item.columnId == doneColumnId
-                                      ? Icons.remove_done_outlined
-                                      : Icons.check_circle_outline,
-                                  size: 18,
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: item.columnId == doneColumnId
+                                      ? 'Mark not done'
+                                      : 'Mark done',
+                                  onPressed: toggleDoneAction,
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints.tightFor(
+                                      width: 32, height: 32),
+                                  padding: EdgeInsets.zero,
+                                  icon: Icon(
+                                    item.columnId == doneColumnId
+                                        ? Icons.remove_done_outlined
+                                        : Icons.check_circle_outline,
+                                    size: 18,
+                                  ),
                                 ),
-                              ),
-                              buildOverflowMenu(),
-                            ],
+                                buildOverflowMenu(),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

@@ -10,6 +10,7 @@ import 'package:plandone/src/features/board/domain/models/column.dart'
     as domain_column;
 import 'package:plandone/src/features/board/domain/models/work_item.dart'
     as domain;
+import 'package:plandone/src/features/board/domain/models/work_item_recurrence.dart';
 import 'package:plandone/src/features/board/domain/models/work_item_type.dart';
 
 bool _hasSqliteDynamicLibrary() {
@@ -103,6 +104,45 @@ void main() {
 
     final boards = await db.select(db.boards).get();
     expect(boards.where((b) => b.boardId == 'board-1').length, 1);
+
+    await db.close();
+  }, skip: !_canRunDriftTests);
+
+  test('drift store persists recurrence metadata inside work item payload',
+      () async {
+    final db = BoardDatabase.forTesting(NativeDatabase.memory());
+    final store = DriftLocalBoardStore(database: db, currentUserId: 'user-1');
+
+    await store.upsertItem(
+      domain.WorkItem(
+        itemId: 'recurring-action',
+        boardId: 'board-1',
+        title: 'Recurring action',
+        type: WorkItemType.action,
+        columnId: 'c-doing',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        recurrence: const WorkItemRecurrence(
+          cadence: WorkItemRecurrenceCadence.weekly,
+          interval: 2,
+          missedWindowPolicy: WorkItemRecurrenceMissedWindowPolicy.singleStep,
+          rootItemId: 'recurring-action',
+          sequence: 4,
+        ),
+      ),
+    );
+
+    final snapshot = await store.getBoard('board-1');
+    final restored =
+        snapshot.items.firstWhere((i) => i.itemId == 'recurring-action');
+
+    expect(restored.recurrence, isNotNull);
+    expect(restored.recurrence?.interval, 2);
+    expect(
+      restored.recurrence?.missedWindowPolicy,
+      WorkItemRecurrenceMissedWindowPolicy.singleStep,
+    );
+    expect(restored.recurrence?.sequence, 4);
 
     await db.close();
   }, skip: !_canRunDriftTests);

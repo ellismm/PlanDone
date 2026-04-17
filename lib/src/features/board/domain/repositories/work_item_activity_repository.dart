@@ -8,4 +8,10 @@ abstract class WorkItemActivityRepository {
     required String itemId,
     int limit = 100,
   });
+
+  Future<List<WorkItemActivityEvent>> listForBoard({
+    required String boardId,
+    DateTime? since,
+    int limit = 500,
+  });
 }

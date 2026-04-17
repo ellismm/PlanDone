@@ -1,8 +1,21 @@
+import 'dart:ffi';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plandone/src/features/board/data/local/drift/board_database.dart';
 import 'package:plandone/src/features/board/data/repositories/notification_preferences_repository_impl.dart';
 import 'package:plandone/src/features/board/domain/models/notification_preferences.dart';
+
+bool _hasSqliteDynamicLibrary() {
+  try {
+    DynamicLibrary.open('libsqlite3.so');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+final _canRunDriftTests = _hasSqliteDynamicLibrary();
 
 void main() {
   test('in-memory notification preferences are user-scoped', () async {
@@ -50,5 +63,5 @@ void main() {
     expect(loaded.defaultSnoozeMinutes, 15);
     expect(loaded.mutedUntil?.millisecondsSinceEpoch, 1700000000000);
     expect(loaded.snoozedReminderUntilEpochMillis['abc'], 1700000005000);
-  });
+  }, skip: !_canRunDriftTests);
 }

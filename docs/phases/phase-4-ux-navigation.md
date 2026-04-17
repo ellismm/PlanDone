@@ -10,9 +10,9 @@ PlanDone currently has strong core mechanics, but day-to-day usage still feels s
 
 - Introduce route-based app shell/navigation for primary product areas.
 - Split current board experience into dedicated surfaces:
-  - **Board Workspace** (kanban execution)
+  - **Board Workspace** (execution plus view-mode switching)
   - **Board Configuration** (board settings, members, validation/workflow settings)
-  - **Planning Views entry point** (for hierarchy-focused planning in Phase 6)
+  - **Board Insights** (board-neutral productivity metrics)
 - Refactor large board UI into smaller, testable widgets/controllers.
 - Improve discoverability and action grouping (less modal-only UX).
 
@@ -40,7 +40,7 @@ PlanDone currently has strong core mechanics, but day-to-day usage still feels s
 ## Acceptance criteria
 
 - App is no longer effectively a one-page workflow.
-- Users can reach board configuration and planning surfaces in <= 2 interactions.
+- Users can reach board configuration and alternate workspace views in <= 2 interactions.
 - Existing board operations remain functional and permission-safe.
 - Tests/docs are updated for new navigation structure.
 
@@ -56,22 +56,25 @@ PlanDone currently has strong core mechanics, but day-to-day usage still feels s
 
 - `/workspace` -> **Board Workspace**
   - Day-to-day board execution surface.
-  - Item creation, movement, filtering, focus mode, sync actions.
+  - Item creation, movement, filtering, view switching, focus mode, sync actions.
+- `/insights` -> **Board Insights**
+  - Board-scoped accomplishments, momentum, health, and attention metrics.
 - `/board-configuration` -> **Board Configuration**
   - Board-scope switching, board create/rename, column management, members, validation/workflow settings.
 - `/planning` -> **Planning Entry Point**
-  - Planning view selector (Kanban/Hierarchy/Backlog/Focus) and route handoff back to workspace.
+  - Compatibility alias that redirects into `/workspace`.
 
 ### Page boundaries
 
 - Workspace keeps execution and item operations.
+- Workspace owns Kanban, Hierarchy, Backlog, and Focus as internal modes.
 - Configuration centralizes governance/configuration actions.
-- Planning route provides explicit planning entry without expanding full Phase 6 scope.
+- Insights provides board-neutral progress visibility without changing execution flow.
 
 ### Tradeoff notes (UX clarity vs complexity)
 
-- **Improved clarity:** settings and planning are now discoverable via primary navigation instead of being hidden in workspace action chips.
-- **Added structural complexity:** multi-route shell and dedicated pages increase surface area to maintain.
+- **Improved clarity:** execution and planning views now live under one workspace home instead of splitting navigation between two destinations.
+- **Added structural complexity:** the workspace shell now owns both route navigation and in-surface view switching.
 - **Mitigation:** preserved existing providers/controllers/repository contracts and reused guard/permission behavior to avoid architecture churn.
 
 ### Acceptance checklist results

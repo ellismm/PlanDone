@@ -3,6 +3,64 @@ import '../models/work_item.dart';
 import '../models/work_item_type.dart';
 
 class BoardValidationPolicy {
+  static bool isAllowedParentType({
+    required WorkItemType childType,
+    required WorkItemType parentType,
+  }) {
+    if (childType == WorkItemType.goal) return false;
+    return _typeRank(parentType) < _typeRank(childType);
+  }
+
+  static List<WorkItem> allowedParentCandidates({
+    required WorkItemType childType,
+    required List<WorkItem> allItems,
+    String? itemId,
+    bool excludeArchived = true,
+    bool excludeInbox = true,
+  }) {
+    if (childType == WorkItemType.goal) {
+      return const <WorkItem>[];
+    }
+
+    final blockedIds = <String>{};
+    if (itemId != null && itemId.trim().isNotEmpty) {
+      blockedIds.add(itemId);
+      final childrenByParent = <String, List<WorkItem>>{};
+      for (final item in allItems) {
+        final parentId = item.parentId;
+        if (parentId == null) continue;
+        childrenByParent.putIfAbsent(parentId, () => <WorkItem>[]).add(item);
+      }
+
+      void blockDescendants(String parentId) {
+        for (final child in childrenByParent[parentId] ?? const <WorkItem>[]) {
+          if (blockedIds.add(child.itemId)) {
+            blockDescendants(child.itemId);
+          }
+        }
+      }
+
+      blockDescendants(itemId);
+    }
+
+    final candidates = allItems.where((candidate) {
+      if (blockedIds.contains(candidate.itemId)) return false;
+      if (excludeArchived && candidate.archived) return false;
+      if (excludeInbox && candidate.isInbox) return false;
+      return isAllowedParentType(
+        childType: childType,
+        parentType: candidate.type,
+      );
+    }).toList()
+      ..sort((a, b) {
+        final byType = _typeRank(a.type).compareTo(_typeRank(b.type));
+        if (byType != 0) return byType;
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      });
+
+    return candidates;
+  }
+
   static String? validateNewItem({
     required BoardValidationSettings settings,
     required WorkItemType type,

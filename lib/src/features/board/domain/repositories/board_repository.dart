@@ -84,8 +84,14 @@ abstract class BoardRepository {
     required WorkItemType type,
     required String toColumnId,
     String? parentId,
+    String? description,
+    DateTime? startAt,
+    DateTime? targetEndAt,
+    DateTime? dueAt,
     List<String> tags = const [],
     int? estimatedEffortMinutes,
+    int? actualEffortMinutes,
+    WorkItemRecurrence? recurrence,
   });
 
   Future<void> createInboxCapture({
@@ -115,6 +121,16 @@ abstract class BoardRepository {
     required String toColumnId,
   });
 
+  Future<void> reorderItem({
+    required String boardId,
+    required String itemId,
+    String? toColumnId,
+    String? parentId,
+    bool clearParent = false,
+    String? beforeItemId,
+    String? afterItemId,
+  });
+
   Future<void> moveItemToBoard({
     required String fromBoardId,
     required String itemId,
@@ -127,6 +143,7 @@ abstract class BoardRepository {
     required String itemId,
     String? title,
     String? description,
+    double? sortOrder,
     String? parentId,
     DateTime? startAt,
     DateTime? targetEndAt,

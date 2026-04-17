@@ -6,6 +6,8 @@ const _legacyUseDriftLocalStore = bool.fromEnvironment(
 const _isFlutterTest =
     bool.fromEnvironment('FLUTTER_TEST', defaultValue: false);
 
+const isFlutterTestRuntime = _isFlutterTest;
+
 /// Drift is the default runtime path.
 ///
 /// Set `--dart-define=USE_IN_MEMORY_LOCAL_STORE=true` for tests/dev toggles.
