@@ -43,25 +43,36 @@ Close the remaining trust-and-reliability gaps for PlanDone as a **daily-use per
 
 ## Validation summary
 
-Validated on March 18, 2026 with:
+The build-14 source snapshot was revalidated on September 20, 2026 with:
 
 ```bash
-npm run test:rules
-flutter test
+flutter analyze
+flutter test --concurrency=1
+npm run test:rules # under Node 22 and Java 21
 ```
 
 Results:
 
-- Firestore rules tests passed.
-- Flutter test suite passed.
+- Static analysis reported no issues.
+- The Flutter suite passed 264 tests with 11 expected platform skips.
+- All 29 Firestore rules tests passed.
+- Android release `0.1.0 (14)` was built and distributed through Firebase App
+  Distribution on August 30, 2026.
+- The complete build-14 source was audited for credential-shaped content,
+  committed as `ca9c3b3`, and pushed to `origin/main` on September 20, 2026.
 
 ## Remaining manual release gate
 
-The remaining honest gate is a **physical-device manual smoke pass**, especially for:
+The remaining honest gate is a **physical-device manual smoke pass** for the
+few interactions not yet directly confirmed on build 14:
 
-- background/closed-app reminder delivery
-- offline -> online recovery
-- backup/restore confidence on target device
+- Undo after a move or archive action
+- create, edit, move, and archive while offline, followed by online reconciliation
+- the complete AI generation, review, reject, and approve path under App Check
+
+Background/closed-app reminders, backup/restore, sign-in, recurrence, and a
+basic offline-to-online create/sync path have already passed on the target
+Android device.
 
 Use [personal-mvp-smoke-checklist.md](/home/messay/coding/own/PlanDone/docs/ops/personal-mvp-smoke-checklist.md) before calling a build release-ready.
 

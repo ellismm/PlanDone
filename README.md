@@ -22,6 +22,7 @@ The product is no longer a Phase 1 starter. It now covers the core daily-use per
 - deterministic due/start reminders with snooze and mute
 - completion-gated recurring tasks with missed-window policies
 - deterministic non-AI autofill suggestions
+- human-controlled AI hierarchy generation with review-before-commit
 - JSON backup/export and restore-as-new-board
 
 ## Current MVP posture
@@ -36,7 +37,8 @@ PlanDone is positioned as a **daily-use personal MVP**, not a small-team product
 - Android reminders use **local scheduled notifications** for due/start alerts, including background/closed-app delivery.
 - Recurrence is intentionally **completion-gated only** for the MVP.
 - Backup/restore is intentionally **manual JSON export/import** with restore into a new board.
-- AI remains deferred.
+- Firebase AI planning is available in the Firebase profile. Generated content
+  remains an editable in-memory draft until the user explicitly approves it.
 
 ### Known limitations
 
@@ -138,7 +140,8 @@ Recommended starting points:
 
 These are not blockers for the current personal MVP:
 
-- AI/LLM-assisted breakdown and generation
+- production hardening for AI quota/capacity variability and future signing
+  certificates
 - automated backend-driven push reminder pipeline
 - complex calendar/RRULE recurrence semantics
 - merge-based import tooling

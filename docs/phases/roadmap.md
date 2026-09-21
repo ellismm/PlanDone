@@ -42,7 +42,7 @@ Based on docs and implementation status, PlanDone has a strong technical base an
 - **Phase 6:** Planning Views & Hierarchy Management
 - **Phase 7:** Cloud Backend Infrastructure Baseline
 - **Phase 8:** Reliability, Security & Daily-Use Polish
-- **Phase 9 (Deferred):** AI Breakdown + Advanced Automation
+- **Phase 9:** AI Breakdown + Advanced Automation
 - **Phase 10:** Quick Capture Inbox
 - **Phase 11:** Saved Filter Presets
 - **Phase 12:** Item Activity History
@@ -73,7 +73,9 @@ Based on docs and implementation status, PlanDone has a strong technical base an
 15. Execute Phase 18 for recurring task lifecycle automation.
 16. Execute Phase 19 for deterministic smart autofill defaults.
 17. Execute the personal MVP closeout pass for reminders, release readiness, backup/restore, and docs alignment.
-18. Execute deferred Phase 9 only after the personal MVP baseline is proven in daily use.
+18. Complete Phase 9's physical-device acceptance pass after the personal MVP
+    baseline is proven in daily use. Its controlled implementation is already
+    present in build 14.
 
 ## 5. Go/no-go gates between phases
 
@@ -93,7 +95,8 @@ Based on docs and implementation status, PlanDone has a strong technical base an
 - **Gate to Phase 18:** Notification preference model is stable.
 - **Gate to Phase 19:** Recurrence behavior is deterministic and idempotent.
 - **Gate to personal MVP closeout:** Phase 19 behavior is stable enough to harden release trust.
-- **Gate to Phase 9 (Deferred):** The personal MVP baseline is stable in daily use.
+- **Gate to Phase 9 acceptance:** The personal MVP baseline is stable in daily
+  use and the complete AI review/approval flow passes under App Check.
 
 ## 6. Personal MVP closeout
 

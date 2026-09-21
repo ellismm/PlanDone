@@ -59,10 +59,10 @@ Use this checklist before calling a build ready for daily personal use.
 
 ## Final release decision
 
-- [x] `flutter analyze` passed on 2026-08-30 with no issues.
-- [x] `flutter test --concurrency=1` passed on 2026-08-30 (264 passed,
+- [x] `flutter analyze` passed on 2026-09-20 with no issues.
+- [x] `flutter test --concurrency=1` passed on 2026-09-20 (264 passed,
   11 platform skips).
-- [x] `npm run test:rules` passed on 2026-08-30 (29 passed), including
+- [x] `npm run test:rules` passed on 2026-09-20 (29 passed), including
   owner-role escalation, account cleanup, membership discovery, and owner-only
   board deletion regression coverage.
 - [x] Firebase-profile `flutter build apk --release` passed on 2026-08-30.
@@ -70,6 +70,15 @@ Use this checklist before calling a build ready for daily personal use.
 - [x] Any remaining issues are documented in [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-limitations.md).
 
 ## Validation log
+
+### 2026-09-20 — Source-control and documentation closeout
+
+- The complete build-14 source was scanned for credential-shaped additions;
+  local Firebase configuration and signing material remain ignored.
+- Static analysis, all 264 Flutter tests, and all 29 Firestore rules tests
+  passed before the source snapshot was committed and pushed.
+- Roadmap, AI status, known limitations, and closeout documentation were
+  reconciled without marking the remaining physical-device checks complete.
 
 ### 2026-08-30 — Tester build 0.1.0 (14)
 

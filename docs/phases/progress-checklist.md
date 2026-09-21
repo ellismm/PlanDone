@@ -1,13 +1,16 @@
 # PlanDone Multi-Phase Progress Checklist
 
-Use this file as your execution tracker while prompting Cline phase-by-phase.
+Use this file as the implementation and release-readiness tracker. Completed
+phase items describe shipped code and automated coverage; the separate final
+release gate records device-only validation that must not be inferred from
+unit or widget tests.
 
 ---
 
 ## Per-Phase Deployment Gate
 
-- [ ] `flutter test` passes for the phase changes
-- [ ] App builds successfully for Android (`flutter build apk --debug`)
+- [x] `flutter test` passes for the phase changes
+- [x] App builds successfully for Android
 - [ ] Latest code is deployed to physical device (`flutter run -d <physical_device_id>`)
 - [ ] Manual smoke-check of the phase flow on device completed
 
@@ -15,29 +18,29 @@ Use this file as your execution tracker while prompting Cline phase-by-phase.
 
 ## Phase 1 — Foundation Completion
 
-- [ ] Firebase config and packages added for target platforms
-- [ ] Email/password auth implemented
-- [ ] Google auth implemented
-- [ ] Auth state bootstrapping + route guard implemented
-- [ ] Drift local store set as default runtime path
-- [ ] User-scoped board context wired through providers/repositories
-- [ ] Offline board/item CRUD validated post-auth
-- [ ] Tests added/updated for auth and local behavior
-- [ ] Docs updated (setup + architecture boundaries)
-- [ ] Phase 1 acceptance criteria confirmed
+- [x] Firebase config and packages added for target platforms
+- [x] Email/password auth implemented
+- [x] Google auth implemented
+- [x] Auth state bootstrapping + route guard implemented
+- [x] Drift local store set as default runtime path
+- [x] User-scoped board context wired through providers/repositories
+- [x] Offline board/item CRUD implemented and covered post-auth
+- [x] Tests added/updated for auth and local behavior
+- [x] Docs updated (setup + architecture boundaries)
+- [x] Phase 1 acceptance criteria confirmed
 
 ## Phase 2 — Sync & Realtime Completion
 
-- [ ] Firestore-backed sync adapter implemented
-- [ ] Outbox payload contracts hardened/documented
-- [ ] Idempotent apply behavior validated
-- [ ] Retry metadata/backoff behavior verified
-- [ ] Reconnect sync behavior validated
-- [ ] Firestore listeners hydrate local Drift DB
-- [ ] LWW conflict behavior documented and implemented
-- [ ] Tests added for success/failure/retry/realtime paths
-- [ ] Sync troubleshooting docs updated
-- [ ] Phase 2 acceptance criteria confirmed
+- [x] Firestore-backed sync adapter implemented
+- [x] Outbox payload contracts hardened/documented
+- [x] Idempotent apply behavior validated
+- [x] Retry metadata/backoff behavior verified
+- [x] Reconnect sync behavior validated
+- [x] Firestore listeners hydrate local Drift DB
+- [x] LWW conflict behavior documented and implemented
+- [x] Tests added for success/failure/retry/realtime paths
+- [x] Sync troubleshooting docs updated
+- [x] Phase 2 acceptance criteria confirmed
 
 ## Phase 3 — Collaboration & Permissions
 
@@ -97,7 +100,7 @@ Use this file as your execution tracker while prompting Cline phase-by-phase.
 - [x] Daily-use readiness checklist completed
 - [x] Phase 8 acceptance criteria confirmed
 
-## Phase 9 — AI + Advanced Automation (Deferred)
+## Phase 9 — AI + Advanced Automation
 
 - [x] AI adapter/service abstraction added
 - [x] AI prompt -> structured hierarchy parser implemented
@@ -105,7 +108,7 @@ Use this file as your execution tracker while prompting Cline phase-by-phase.
 - [x] Approved AI items inserted through local-first pipeline
 - [x] AI safety/validation guardrails verified
 - [x] Tests/docs updated for AI workflows
-- [ ] Firebase AI Logic + App Check activated and live-provider smoke-tested
+- [x] Firebase AI Logic + App Check activated and live generation smoke-tested
 - [ ] Phase 9 acceptance criteria confirmed
 
 ## Phase 10 — Quick Capture Inbox
@@ -198,7 +201,7 @@ Use this file as your execution tracker while prompting Cline phase-by-phase.
 - [ ] End-to-end manual QA across offline/online transitions
 - [x] Security/rules test pass recorded
 - [x] `flutter test` clean pass
-- [x] Key docs reviewed and consistent
+- [x] Key docs reviewed and reconciled with build 14
 - [x] Known limitations/backlog documented
 
 Supporting docs:
