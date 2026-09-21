@@ -5,6 +5,7 @@ import 'package:plandone/src/features/auth/presentation/auth_controller.dart';
 import 'package:plandone/src/features/board/data/local/in_memory_local_board_store.dart';
 import 'package:plandone/src/features/board/data/repositories/notification_preferences_repository_impl.dart';
 import 'package:plandone/src/features/board/data/repositories/work_item_activity_repository_impl.dart';
+import 'package:plandone/src/features/board/domain/models/work_item_type.dart';
 import 'package:plandone/src/features/board/presentation/board_controller.dart';
 
 ProviderContainer _container() {
@@ -26,6 +27,38 @@ ProviderContainer _container() {
 }
 
 void main() {
+  test('triage uses the item source board when another board is active',
+      () async {
+    final container = _container();
+    addTearDown(container.dispose);
+
+    final controller = container.read(boardControllerProvider);
+    await controller.createInboxCapture(title: 'Cross-board capture');
+    final sourceBefore =
+        await container.read(localBoardStoreProvider).getBoard('board-1');
+    final capture = sourceBefore.items
+        .firstWhere((item) => item.title == 'Cross-board capture');
+
+    await controller.createBoard('Second board');
+    expect(container.read(currentBoardIdProvider), isNot('board-1'));
+
+    await controller.triageInboxItem(
+      fromBoardId: capture.boardId,
+      itemId: capture.itemId,
+      toBoardId: capture.boardId,
+      toColumnId: 'c-todo',
+      type: WorkItemType.action,
+    );
+
+    final sourceAfter =
+        await container.read(localBoardStoreProvider).getBoard('board-1');
+    final triaged =
+        sourceAfter.items.firstWhere((item) => item.itemId == capture.itemId);
+    expect(triaged.isInbox, isFalse);
+    expect(triaged.type, WorkItemType.action);
+    expect(triaged.columnId, 'c-todo');
+  });
+
   test('undo restores moved item to previous column', () async {
     final container = _container();
     addTearDown(container.dispose);
@@ -51,6 +84,29 @@ void main() {
         await container.read(localBoardStoreProvider).getBoard('board-1');
     final restored = after.items.firstWhere((entry) => entry.itemId == 'a-3');
     expect(restored.columnId, item.columnId);
+  });
+
+  test('staged undo stays available long enough for device interaction',
+      () async {
+    final container = _container();
+    addTearDown(container.dispose);
+
+    final controller = container.read(boardControllerProvider);
+    final now = DateTime.now();
+    final snapshot =
+        await container.read(localBoardStoreProvider).getBoard('board-1');
+    final item = snapshot.items.firstWhere((entry) => entry.itemId == 'a-3');
+
+    final operation = controller.stageMoveUndo(
+      item: item,
+      fromBoardId: item.boardId,
+      fromColumnId: item.columnId,
+      toBoardId: item.boardId,
+      toColumnId: 'c-done',
+    );
+
+    expect(operation.expiresAt.difference(now),
+        greaterThanOrEqualTo(const Duration(seconds: 15)));
   });
 
   test('undo restores archived state', () async {

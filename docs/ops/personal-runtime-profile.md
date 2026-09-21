@@ -2,18 +2,20 @@
 
 ## Purpose
 
-This is the recommended runtime profile for **daily personal use** of PlanDone as of March 18, 2026.
+This is the recommended runtime profile for **daily personal use** of PlanDone as of August 25, 2026.
 
-## Recommended flags
+## Recommended profile
 
 Use persistent local storage plus Firebase auth and sync:
 
 ```bash
 flutter run \
-  --dart-define=USE_IN_MEMORY_LOCAL_STORE=false \
-  --dart-define=USE_FIREBASE_AUTH=true \
-  --dart-define=USE_FIREBASE_SYNC=true
+  --dart-define-from-file=config/runtime/firebase.json
 ```
+
+The checked-in file selects `PLANDONE_RUNTIME_PROFILE=firebase`, persistent
+Drift storage, Firebase Auth, Firestore sync, and local-only reminder delivery.
+The app rejects inconsistent flag combinations during bootstrap.
 
 ## What this profile gives you
 
@@ -29,9 +31,7 @@ If you also want FCM device-token registration for manual push testing:
 
 ```bash
 flutter run \
-  --dart-define=USE_IN_MEMORY_LOCAL_STORE=false \
-  --dart-define=USE_FIREBASE_AUTH=true \
-  --dart-define=USE_FIREBASE_SYNC=true \
+  --dart-define-from-file=config/runtime/firebase.json \
   --dart-define=USE_FIREBASE_PUSH=true
 ```
 
@@ -50,8 +50,9 @@ Use this only for the optional push extension path. The baseline MVP reminder fl
 
 1. Run `npm run test:rules`.
 2. Run `flutter test`.
-3. Deploy latest Android build.
-4. Run the manual checklist in [personal-mvp-smoke-checklist.md](/home/messay/coding/own/PlanDone/docs/ops/personal-mvp-smoke-checklist.md).
+3. Run `scripts/build_android_profile.sh firebase release`.
+4. Deploy with `scripts/deploy_android_latest.sh <device-id> firebase`.
+5. Run the manual checklist in [personal-mvp-smoke-checklist.md](/home/messay/coding/own/PlanDone/docs/ops/personal-mvp-smoke-checklist.md).
 
 ## Non-goals for this profile
 

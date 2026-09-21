@@ -1,0 +1,8 @@
+{
+  "PLANDONE_RUNTIME_PROFILE": "local",
+  "USE_IN_MEMORY_LOCAL_STORE": false,
+  "USE_FIREBASE_AUTH": false,
+  "USE_FIREBASE_SYNC": false,
+  "USE_FIREBASE_PUSH": false,
+  "USE_FIREBASE_AI": false
+}

@@ -44,39 +44,55 @@ See [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-li
 
 ## Recommended personal runtime profile
 
-For daily use with persistent local storage and Firebase auth/sync:
+For daily use with persistent local storage and Firebase auth/sync, use the
+checked-in Firebase runtime profile:
 
 ```bash
 flutter run \
-  --dart-define=USE_IN_MEMORY_LOCAL_STORE=false \
-  --dart-define=USE_FIREBASE_AUTH=true \
-  --dart-define=USE_FIREBASE_SYNC=true
+  --dart-define-from-file=config/runtime/firebase.json
 ```
 
 Notes:
 
+- `config/runtime/local.json` is the explicit device-local development profile.
+- `config/runtime/firebase.json` is the personal-use profile with real auth and sync.
 - Local Android reminders do **not** require `USE_FIREBASE_PUSH=true`.
 - `USE_FIREBASE_PUSH=true` is only needed if you want optional FCM device-token registration/manual push testing.
 - Full runtime guidance: [personal-runtime-profile.md](/home/messay/coding/own/PlanDone/docs/ops/personal-runtime-profile.md)
+- Phase 9 AI generation is enabled in the Firebase profile. The local profile
+  keeps it disabled; setup and device-validation details are in
+  [firebase-ai-setup.md](/home/messay/coding/own/PlanDone/docs/ops/firebase-ai-setup.md).
 
 ## Validation
+
+Firebase CLI and rules-test development requires Node.js 22 or newer and
+Java 21 or newer. The Flutter/Android application runtime does not depend on
+the Node packages.
 
 Core validation commands:
 
 ```bash
 npm ci
+npm audit --audit-level=high
 npm run test:rules
 flutter analyze
 flutter test
 flutter test --concurrency=1
-flutter build apk --release
+scripts/build_android_profile.sh local release
 ```
+
+After adding `android/app/google-services.json`, validate the real personal-use
+artifact with `scripts/build_android_profile.sh firebase release`.
 
 Physical Android deploy:
 
 ```bash
 scripts/deploy_android_latest.sh
 ```
+
+Physical deployment defaults to the `firebase` profile and fails fast when its
+Android Firebase configuration is absent. To deploy the device-local profile,
+pass it explicitly: `scripts/deploy_android_latest.sh <device-id> local`.
 
 Android release signing:
 
@@ -86,13 +102,15 @@ Android release signing:
 - For a clean external release id, build with
   `PLANDONE_APPLICATION_ID=com.plandone.app` or Gradle property
   `-PplandoneApplicationId=com.plandone.app`.
-- `flutter build apk --release` supports real signing through root-level
-  `key.properties` or environment variables:
+- `scripts/build_android_profile.sh <profile> release` supports real signing
+  through `android/key.properties` or environment variables:
   `PLANDONE_RELEASE_STORE_FILE`, `PLANDONE_RELEASE_STORE_PASSWORD`,
   `PLANDONE_RELEASE_KEY_ALIAS`, and `PLANDONE_RELEASE_KEY_PASSWORD`.
 - If no release signing values are present, local release builds fall back to
   debug signing so validation builds can still complete. Use real signing for
   any build distributed outside local testing.
+- Set `PLANDONE_REQUIRE_RELEASE_SIGNING=true` to make missing signing credentials
+  a hard failure for distributable builds.
 
 Manual device regression steps:
 

@@ -8,6 +8,42 @@ Future<void> _waitForHydration() async {
 }
 
 void main() {
+  test('rediscovers owned cloud boards without importing other owners',
+      () async {
+    final firestore = FakeFirebaseFirestore();
+    final localStore = InMemoryLocalBoardStore(currentUserId: 'owner-1');
+    final hydrator =
+        FirestoreBoardHydrator(firestore: firestore, localStore: localStore);
+
+    await firestore.collection('boards').doc('board-owned').set(const {
+      'boardId': 'board-owned',
+      'name': 'SW projects',
+      'ownerId': 'owner-1',
+      'createdAt': '2026-03-20T02:35:19.768Z',
+      'updatedAt': '2026-03-21T14:10:33.654Z',
+    });
+    await firestore.collection('boards').doc('board-other').set(const {
+      'boardId': 'board-other',
+      'name': 'Someone else\'s board',
+      'ownerId': 'owner-2',
+      'createdAt': '2026-03-20T02:35:19.768Z',
+      'updatedAt': '2026-03-21T14:10:33.654Z',
+    });
+
+    final discovered = await hydrator.discoverOwnedBoards('owner-1');
+    final boards = await localStore.listBoards();
+
+    expect(discovered, ['board-owned']);
+    expect(
+      boards.any(
+        (board) =>
+            board.boardId == 'board-owned' && board.name == 'SW projects',
+      ),
+      isTrue,
+    );
+    expect(boards.any((board) => board.boardId == 'board-other'), isFalse);
+  });
+
   test('hydrates board, member, column, and work item from Firestore',
       () async {
     final firestore = FakeFirebaseFirestore();

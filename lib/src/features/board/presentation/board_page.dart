@@ -12,6 +12,7 @@ import '../../../app_routes.dart';
 import '../../../core/help/app_help.dart';
 import '../../../core/help/app_help_widgets.dart';
 import '../../../core/runtime/runtime_flags.dart';
+import '../../../core/sync/sync_retry_scheduler.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../domain/models/board_failures.dart';
 import '../domain/models/board.dart';
@@ -4905,6 +4906,7 @@ class BoardPage extends ConsumerWidget {
     await _runGuardedAction(
       context,
       () => ref.read(boardControllerProvider).triageInboxItem(
+            fromBoardId: item.boardId,
             itemId: item.itemId,
             toBoardId: submitted.$1,
             toColumnId: submitted.$2,
@@ -7156,7 +7158,11 @@ class BoardPage extends ConsumerWidget {
     final hierarchyFullTreeMode = planningView == BoardPlanningView.hierarchy;
     final visibleItems = hierarchyFullTreeMode
         ? allItems
-            .where((item) => !item.isInbox && !item.archived)
+            .where(
+              (item) =>
+                  !item.isInbox &&
+                  (showArchivedOnly ? item.archived : !item.archived),
+            )
             .toList(growable: false)
         : _sharedVisibleItems(
             items: allItems,
@@ -7568,8 +7574,11 @@ class BoardPage extends ConsumerWidget {
                   if (!next.add(nodeKey)) {
                     next.remove(nodeKey);
                   }
-                  ref.read(collapsedHierarchyItemIdsProvider.notifier).state =
-                      next;
+                  unawaited(
+                    ref
+                        .read(boardControllerProvider)
+                        .setCollapsedHierarchyItemIds(next),
+                  );
                 },
         );
         final wrappedRow = DragTarget<WorkItem>(
@@ -7669,28 +7678,35 @@ class BoardPage extends ConsumerWidget {
     final focusedHierarchyItemKey = focusedHierarchyItem == null
         ? null
         : _hierarchyNodeKeyForItem(focusedHierarchyItem);
-    final VoidCallback? expandSelectedHierarchyBranch = focusedHierarchyItem ==
-                null ||
-            !focusedHierarchyHasChildren ||
-            !focusedBranchHasCollapsedNodes
-        ? null
-        : () {
-            final next = <String>{
-              ...collapsedHierarchyItemIds,
-            }..removeWhere(focusedBranchItemIds.contains);
-            ref.read(collapsedHierarchyItemIdsProvider.notifier).state = next;
-          };
+    final VoidCallback? expandSelectedHierarchyBranch =
+        focusedHierarchyItem == null ||
+                !focusedHierarchyHasChildren ||
+                !focusedBranchHasCollapsedNodes
+            ? null
+            : () {
+                final next = <String>{
+                  ...collapsedHierarchyItemIds,
+                }..removeWhere(focusedBranchItemIds.contains);
+                unawaited(
+                  ref
+                      .read(boardControllerProvider)
+                      .setCollapsedHierarchyItemIds(next),
+                );
+              };
     final VoidCallback? collapseSelectedHierarchyBranch =
         focusedHierarchyItem == null ||
                 !focusedHierarchyHasChildren ||
                 collapsedHierarchyItemIds.contains(focusedHierarchyItemKey)
             ? null
             : () {
-                ref.read(collapsedHierarchyItemIdsProvider.notifier).state =
-                    <String>{
-                  ...collapsedHierarchyItemIds,
-                  focusedHierarchyItemKey!,
-                };
+                unawaited(
+                  ref
+                      .read(boardControllerProvider)
+                      .setCollapsedHierarchyItemIds(<String>{
+                    ...collapsedHierarchyItemIds,
+                    focusedHierarchyItemKey!,
+                  }),
+                );
               };
     final showSelectedBranchOverlay = focusedHierarchyItem != null &&
         focusedHierarchyHasChildren &&
@@ -7775,12 +7791,15 @@ class BoardPage extends ConsumerWidget {
                                     ? (collapsedHierarchyItemIds.isEmpty
                                         ? null
                                         : () {
-                                            ref
-                                                .read(
-                                                  collapsedHierarchyItemIdsProvider
-                                                      .notifier,
-                                                )
-                                                .state = <String>{};
+                                            unawaited(
+                                              ref
+                                                  .read(
+                                                boardControllerProvider,
+                                              )
+                                                  .setCollapsedHierarchyItemIds(
+                                                <String>{},
+                                              ),
+                                            );
                                           })
                                     : expandSelectedHierarchyBranch,
                                 icon: const Icon(Icons.unfold_more),
@@ -7797,19 +7816,19 @@ class BoardPage extends ConsumerWidget {
                                     : 'Collapse selected branch',
                                 onPressed: focusedHierarchyItem == null
                                     ? () {
-                                        ref
-                                            .read(
-                                                collapsedHierarchyItemIdsProvider
-                                                    .notifier)
-                                            .state = {
-                                          for (final entry in byId.values)
-                                            if ((childrenByParent[
-                                                        _hierarchyNodeKeyForItem(
-                                                            entry)] ??
-                                                    const <WorkItem>[])
-                                                .isNotEmpty)
-                                              _hierarchyNodeKeyForItem(entry),
-                                        };
+                                        unawaited(
+                                          ref
+                                              .read(boardControllerProvider)
+                                              .setCollapsedHierarchyItemIds({
+                                            for (final entry in byId.values)
+                                              if ((childrenByParent[
+                                                          _hierarchyNodeKeyForItem(
+                                                              entry)] ??
+                                                      const <WorkItem>[])
+                                                  .isNotEmpty)
+                                                _hierarchyNodeKeyForItem(entry),
+                                          }),
+                                        );
                                       }
                                     : collapseSelectedHierarchyBranch,
                                 icon: const Icon(Icons.unfold_less),
@@ -8030,6 +8049,13 @@ class BoardPage extends ConsumerWidget {
             .setPlanningView(_nextPlanningView(planningView));
       },
       actions: [
+        IconButton(
+          key: const ValueKey('open-ai-planning'),
+          tooltip: useFirebaseAi ? 'Plan with AI' : 'AI planning setup',
+          onPressed: () =>
+              Navigator.of(context).pushNamed(AppRoutes.aiPlanning),
+          icon: const Icon(Icons.auto_awesome_outlined),
+        ),
         AppHelpTarget(
           spec: _workspaceTopFocusHelpSpec(),
           borderRadius: BorderRadius.circular(12),
@@ -8314,6 +8340,7 @@ class BoardPage extends ConsumerWidget {
                   children: [
                     const _WorkspaceSyncLifecycleBridge(),
                     const _CalendarPreferencesBridge(),
+                    const _HierarchyPreferencesBridge(),
                     _HierarchyPlanningModeBridge(
                       planningView: planningView,
                     ),
@@ -9846,10 +9873,30 @@ class _WorkspaceSyncLifecycleBridgeState
     extends ConsumerState<_WorkspaceSyncLifecycleBridge>
     with WidgetsBindingObserver {
   bool _syncInFlight = false;
+  bool _syncRequestedWhileInFlight = false;
+  bool _forceRequestedWhileInFlight = false;
+  late final SyncRetryScheduler _retryScheduler;
+  ProviderSubscription<DateTime?>? _retryScheduleListener;
 
   @override
   void initState() {
     super.initState();
+    _retryScheduler = SyncRetryScheduler(
+      onRetry: () => _triggerAutoSync(force: false),
+    );
+    _retryScheduleListener = ref.listenManual<DateTime?>(
+      outboxStatusProvider.select(
+        (value) => value.valueOrNull?.nextRetryAt,
+      ),
+      (previous, next) {
+        if (!useFirebaseSync) {
+          _retryScheduler.cancel();
+          return;
+        }
+        _retryScheduler.schedule(next);
+      },
+      fireImmediately: true,
+    );
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _triggerAutoSync(force: false);
@@ -9858,6 +9905,8 @@ class _WorkspaceSyncLifecycleBridgeState
 
   @override
   void dispose() {
+    _retryScheduleListener?.close();
+    _retryScheduler.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -9870,12 +9919,17 @@ class _WorkspaceSyncLifecycleBridgeState
   }
 
   Future<void> _triggerAutoSync({required bool force}) async {
-    if (!mounted || !useFirebaseSync || _syncInFlight) return;
-    final pendingCount = await ref.read(pendingOutboxCountProvider.future);
-    if (pendingCount <= 0) return;
+    if (!mounted || !useFirebaseSync) return;
+    if (_syncInFlight) {
+      _syncRequestedWhileInFlight = true;
+      _forceRequestedWhileInFlight |= force;
+      return;
+    }
 
     _syncInFlight = true;
     try {
+      final pendingCount = await ref.read(pendingOutboxCountProvider.future);
+      if (pendingCount <= 0) return;
       await ref.read(boardControllerProvider).syncNow(
             ignoreRetrySchedule: force,
           );
@@ -9883,6 +9937,12 @@ class _WorkspaceSyncLifecycleBridgeState
       // Best-effort background sync; UI shows latest sync status.
     } finally {
       _syncInFlight = false;
+      if (_syncRequestedWhileInFlight && mounted) {
+        final forceNext = _forceRequestedWhileInFlight;
+        _syncRequestedWhileInFlight = false;
+        _forceRequestedWhileInFlight = false;
+        unawaited(_triggerAutoSync(force: forceNext));
+      }
     }
   }
 
@@ -9938,6 +9998,46 @@ class _CalendarPreferencesBridgeState
       });
     }
 
+    return const SizedBox.shrink();
+  }
+}
+
+class _HierarchyPreferencesBridge extends ConsumerStatefulWidget {
+  const _HierarchyPreferencesBridge();
+
+  @override
+  ConsumerState<_HierarchyPreferencesBridge> createState() =>
+      _HierarchyPreferencesBridgeState();
+}
+
+class _HierarchyPreferencesBridgeState
+    extends ConsumerState<_HierarchyPreferencesBridge> {
+  String? _lastAppliedUserId;
+  bool _applyScheduled = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final userId = ref.watch(boardScopeUserIdProvider);
+    final collapsedItemIds =
+        ref.watch(hierarchyCollapsedItemIdsPreferencesProvider).valueOrNull;
+    if (collapsedItemIds == null ||
+        _lastAppliedUserId == userId ||
+        _applyScheduled) {
+      return const SizedBox.shrink();
+    }
+
+    _applyScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(boardScopeUserIdProvider) != userId) {
+        _applyScheduled = false;
+        return;
+      }
+      ref.read(collapsedHierarchyItemIdsProvider.notifier).state =
+          Set<String>.unmodifiable(collapsedItemIds);
+      _lastAppliedUserId = userId;
+      _applyScheduled = false;
+    });
     return const SizedBox.shrink();
   }
 }

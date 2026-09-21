@@ -147,8 +147,8 @@ class BoardBackupRepositoryImpl implements BoardBackupRepository {
     await _enqueue(
       now: now,
       type: OutboxOperationType.create,
-      entity: 'member',
-      entityId: _currentUserId,
+      entity: 'boardMember',
+      entityId: '${importedBoard.boardId}:$_currentUserId',
       boardId: importedBoard.boardId,
       payload: {
         'userId': _currentUserId,

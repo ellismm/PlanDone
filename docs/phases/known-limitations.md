@@ -13,6 +13,12 @@ Current as of April 17, 2026.
 - Backup restore imports data as a **new board**.
 - Restore does not perform merge/conflict resolution into an existing board.
 - Restored boards are re-owned by the current local user; collaborator membership is not fully restored.
+- Android cloud backup and device-transfer extraction are disabled to keep the
+  local database, credentials, preferences, and app-managed JSON snapshots out
+  of OS backup transports.
+- App-managed JSON snapshots remain inside PlanDone's private storage and are
+  removed if the app is uninstalled or its storage is cleared. Synced board
+  data can still be recovered from Firestore after signing in.
 
 ## Recurrence
 
@@ -33,7 +39,9 @@ Current as of April 17, 2026.
 
 ## Deferred intentionally
 
-- AI-assisted planning and breakdown
+- AI-assisted planning is enabled in the Firebase profile, but its final
+  live-provider acceptance pass still requires a physical device that satisfies
+  the configured Play Integrity checks.
 - automated backend push notification workflows
 - cross-platform reminder parity
 - merge-based import UX

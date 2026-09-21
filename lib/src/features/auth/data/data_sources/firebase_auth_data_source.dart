@@ -43,11 +43,9 @@ class FirebaseAuthDataSource implements AuthDataSource {
       );
       return _requireSession(credential.user);
     } on FirebaseAuthException catch (error) {
-      final methods = await _signInMethodsForEmail(normalizedEmail);
       throw mapFirebaseAuthException(
         error,
         normalizedEmail: normalizedEmail,
-        signInMethods: methods,
       );
     } catch (_) {
       throw const AuthFailure(
@@ -75,11 +73,9 @@ class FirebaseAuthDataSource implements AuthDataSource {
       }
       return _requireSession(_firebaseAuth.currentUser ?? credential.user);
     } on FirebaseAuthException catch (error) {
-      final methods = await _signInMethodsForEmail(normalizedEmail);
       throw mapFirebaseAuthException(
         error,
         normalizedEmail: normalizedEmail,
-        signInMethods: methods,
       );
     } catch (_) {
       throw const AuthFailure(
@@ -119,9 +115,6 @@ class FirebaseAuthDataSource implements AuthDataSource {
       rethrow;
     } on FirebaseAuthException catch (error) {
       final email = error.email;
-      final methods = email == null
-          ? const <String>[]
-          : await _signInMethodsForEmail(email);
       if (error.code == 'account-exists-with-different-credential' &&
           error.credential != null) {
         _pendingGoogleCredential = error.credential;
@@ -131,7 +124,6 @@ class FirebaseAuthDataSource implements AuthDataSource {
         error,
         normalizedEmail:
             email == null ? null : AuthInputPolicy.normalizeEmail(email),
-        signInMethods: methods,
       );
     } catch (_) {
       throw const AuthFailure(
@@ -149,11 +141,9 @@ class FirebaseAuthDataSource implements AuthDataSource {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: normalizedEmail);
     } on FirebaseAuthException catch (error) {
-      final methods = await _signInMethodsForEmail(normalizedEmail);
       throw mapFirebaseAuthException(
         error,
         normalizedEmail: normalizedEmail,
-        signInMethods: methods,
       );
     } catch (_) {
       throw const AuthFailure(
@@ -179,13 +169,9 @@ class FirebaseAuthDataSource implements AuthDataSource {
       final normalizedEmail = user.email == null
           ? null
           : AuthInputPolicy.normalizeEmail(user.email!);
-      final methods = normalizedEmail == null
-          ? const <String>[]
-          : await _signInMethodsForEmail(normalizedEmail);
       throw mapFirebaseAuthException(
         error,
         normalizedEmail: normalizedEmail,
-        signInMethods: methods,
       );
     } catch (_) {
       throw const AuthFailure(
@@ -225,17 +211,6 @@ class FirebaseAuthDataSource implements AuthDataSource {
       _pendingGoogleCredential = null;
       _pendingGoogleEmail = null;
       await user.reload();
-    }
-  }
-
-  Future<List<String>> _signInMethodsForEmail(String email) async {
-    if (email.isEmpty) return const <String>[];
-    try {
-      // Firebase Auth still requires this lookup for provider-linking recovery.
-      // ignore: deprecated_member_use
-      return await _firebaseAuth.fetchSignInMethodsForEmail(email);
-    } catch (_) {
-      return const <String>[];
     }
   }
 

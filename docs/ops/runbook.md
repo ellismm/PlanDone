@@ -1,13 +1,26 @@
 # PlanDone Backend Ops Runbook
 
+## Backend development prerequisites
+
+- Node.js 22 or newer (enforced by `package.json`)
+- Java 21 or newer for the Firestore emulator
+
 ## Baseline commands
 
 ### Rules tests
 
 ```bash
 npm ci
+npm audit --audit-level=high
 npm run test:rules
 ```
+
+The high-severity audit gate must exit successfully before release. As of
+2026-08-29, npm still reports five moderate transitive advisories from the
+current Firebase CLI: `@google-cloud/pubsub` pins OpenTelemetry 1.x and
+`gaxios` pins UUID 9.x. npm's proposed force fix downgrades Firebase CLI, and
+major-version overrides would violate those upstream dependency ranges, so
+they are tracked until Firebase publishes compatible updates.
 
 ### Flutter validation
 
@@ -37,19 +50,19 @@ Promote the same workflow from `dev` -> `staging` -> `prod`.
 
 ## Personal MVP release routine
 
-1. Run `npm run test:rules`.
-2. Run `flutter test`.
-3. Deploy the latest Android build.
-4. Execute [personal-mvp-smoke-checklist.md](/home/messay/coding/own/PlanDone/docs/ops/personal-mvp-smoke-checklist.md).
-5. Record any residual issues in [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-limitations.md).
+1. Run `npm ci` and `npm audit --audit-level=high`.
+2. Run `npm run test:rules`.
+3. Run `flutter test`.
+4. Run `scripts/build_android_profile.sh firebase release`.
+5. Deploy with `scripts/deploy_android_latest.sh <device-id> firebase`.
+6. Execute [personal-mvp-smoke-checklist.md](/home/messay/coding/own/PlanDone/docs/ops/personal-mvp-smoke-checklist.md).
+7. Record any residual issues in [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-limitations.md).
 
 ## Incident playbooks
 
 ### 1. Outbox not draining
 
-1. Confirm runtime flags:
-   - `USE_FIREBASE_SYNC=true`
-   - `USE_IN_MEMORY_LOCAL_STORE=false`
+1. Confirm the app was built from `config/runtime/firebase.json`.
 2. Open pending outbox UI and inspect failures.
 3. Trigger `Sync now`.
 4. Verify Firestore access/rules for the active user role.
@@ -93,6 +106,9 @@ Promote the same workflow from `dev` -> `staging` -> `prod`.
 2. If a backup file is malformed, delete it from the backup list and export a fresh snapshot.
 3. Remember restore imports as a new board; it does not merge into the current board.
 4. If the restored board is missing expected collaboration data, check [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-limitations.md).
+5. Android OS cloud backup and device transfer intentionally exclude PlanDone
+   private data. App-managed JSON files do not survive uninstall or Clear
+   storage; use Firestore recovery for synchronized data.
 
 ## Decision path: Firebase-only vs extension path
 

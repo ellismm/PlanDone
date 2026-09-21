@@ -26,6 +26,19 @@ class FirestoreBoardHydrator {
   CollectionReference<Map<String, dynamic>> get _boards =>
       _firestore.collection('boards');
 
+  /// Rediscovers boards owned by [userId] after a reinstall or local-data
+  /// reset. Firestore remains authoritative here: only existing board
+  /// documents are copied into the local catalog, and no cloud writes occur.
+  Future<List<String>> discoverOwnedBoards(String userId) async {
+    final snapshot = await _boards.where('ownerId', isEqualTo: userId).get();
+    final discoveredIds = <String>[];
+    for (final doc in snapshot.docs) {
+      await _upsertBoardDocument(doc);
+      discoveredIds.add(doc.id);
+    }
+    return discoveredIds;
+  }
+
   Future<void> startForBoard(String boardId) async {
     await stop();
 
@@ -37,31 +50,7 @@ class FirestoreBoardHydrator {
           // eagerly deleting them can strand the app on a non-existent board id.
           return;
         }
-        final data = doc.data() ?? const <String, dynamic>{};
-        final createdAt =
-            DateTime.tryParse((data['createdAt'] as String?) ?? '') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
-        final updatedAt =
-            DateTime.tryParse((data['updatedAt'] as String?) ?? '') ??
-                createdAt;
-        final validationSettings = BoardValidationSettings.fromMap(
-          (data['validationSettings'] as Map?)?.cast<String, Object?>(),
-        );
-        final workflowSettings = BoardWorkflowSettings.fromMap(
-          (data['workflowSettings'] as Map?)?.cast<String, Object?>(),
-        );
-
-        await _localStore.upsertBoard(
-          Board(
-            boardId: boardId,
-            name: (data['name'] as String?) ?? 'Board',
-            ownerId: (data['ownerId'] as String?) ?? 'unknown',
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            validationSettings: validationSettings,
-            workflowSettings: workflowSettings,
-          ),
-        );
+        await _upsertBoardDocument(doc);
       }),
     );
 
@@ -209,5 +198,35 @@ class FirestoreBoardHydrator {
       await sub.cancel();
     }
     _subscriptions.clear();
+  }
+
+  Future<void> _upsertBoardDocument(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final data = doc.data();
+    if (!doc.exists || data == null) return;
+
+    final createdAt = DateTime.tryParse((data['createdAt'] as String?) ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+    final updatedAt =
+        DateTime.tryParse((data['updatedAt'] as String?) ?? '') ?? createdAt;
+    final validationSettings = BoardValidationSettings.fromMap(
+      (data['validationSettings'] as Map?)?.cast<String, Object?>(),
+    );
+    final workflowSettings = BoardWorkflowSettings.fromMap(
+      (data['workflowSettings'] as Map?)?.cast<String, Object?>(),
+    );
+
+    await _localStore.upsertBoard(
+      Board(
+        boardId: (data['boardId'] as String?) ?? doc.id,
+        name: (data['name'] as String?) ?? 'Board',
+        ownerId: (data['ownerId'] as String?) ?? 'unknown',
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        validationSettings: validationSettings,
+        workflowSettings: workflowSettings,
+      ),
+    );
   }
 }

@@ -18,8 +18,7 @@ Enable the push path when running/building:
 
 ```bash
 flutter run \
-  --dart-define=USE_FIREBASE_AUTH=true \
-  --dart-define=USE_FIREBASE_SYNC=true \
+  --dart-define-from-file=config/runtime/firebase.json \
   --dart-define=USE_FIREBASE_PUSH=true
 ```
 

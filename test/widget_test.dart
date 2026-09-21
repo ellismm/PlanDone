@@ -4,9 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:plandone/src/app.dart';
 import 'package:plandone/src/app_routes.dart';
+import 'package:plandone/src/core/account/account_data_cleanup_service.dart';
+import 'package:plandone/src/core/account/account_management_controller.dart';
 import 'package:plandone/src/core/help/app_help.dart';
 import 'package:plandone/src/core/help/app_help_controller.dart';
 import 'package:plandone/src/core/outbox/in_memory_outbox_queue.dart';
+import 'package:plandone/src/core/runtime/runtime_flags.dart';
 import 'package:plandone/src/core/theme/theme_controller.dart';
 import 'package:plandone/src/core/theme/theme_settings_repository.dart';
 import 'package:plandone/src/features/auth/data/data_sources/in_memory_auth_data_source.dart';
@@ -19,6 +22,7 @@ import 'package:plandone/src/features/board/data/repositories/autofill_settings_
 import 'package:plandone/src/features/board/data/repositories/board_calendar_preferences_repository_impl.dart';
 import 'package:plandone/src/features/board/data/repositories/board_flow_preferences_repository_impl.dart';
 import 'package:plandone/src/features/board/data/repositories/board_filter_preset_repository_impl.dart';
+import 'package:plandone/src/features/board/data/repositories/in_memory/hierarchy_view_preferences_repository_in_memory.dart';
 import 'package:plandone/src/features/board/data/repositories/notification_preferences_repository_impl.dart';
 import 'package:plandone/src/features/board/data/repositories/work_item_activity_repository_impl.dart';
 import 'package:plandone/src/features/board/domain/models/board_flow.dart';
@@ -72,6 +76,9 @@ ProviderContainer _createTestContainer(
       ),
       boardFlowPreferencesRepositoryProvider.overrideWith(
         (ref) => InMemoryBoardFlowPreferencesRepository(userId: userId),
+      ),
+      hierarchyViewPreferencesRepositoryProvider.overrideWith(
+        (ref) => InMemoryHierarchyViewPreferencesRepository(userId: userId),
       ),
       appHelpPreferencesRepositoryProvider.overrideWith(
         (ref) => InMemoryAppHelpPreferencesRepository(userId: userId),
@@ -184,6 +191,33 @@ class _FakeBiometricQuickUnlockService implements BiometricQuickUnlockService {
   }
 }
 
+class _FailingAccountDataCleanupService implements AccountDataCleanupService {
+  var callCount = 0;
+
+  @override
+  Future<void> deleteCloudData({required String userId}) async {
+    callCount += 1;
+    throw StateError('cloud cleanup failed');
+  }
+}
+
+class _RecordingAccountDataCleanupService implements AccountDataCleanupService {
+  var callCount = 0;
+
+  @override
+  Future<void> deleteCloudData({required String userId}) async {
+    callCount += 1;
+  }
+}
+
+class _FailingAccountDeletionPreflightService
+    implements AccountDeletionPreflightService {
+  @override
+  Future<void> requireRecentAuthentication() async {
+    throw StateError('recent authentication required');
+  }
+}
+
 void main() {
   testWidgets('PlanDone app shows auth flow when unauthenticated',
       (WidgetTester tester) async {
@@ -194,8 +228,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Sign in to PlanDone'), findsOneWidget);
-    expect(find.text('Continue with Google'), findsOneWidget);
-    expect(find.text('Forgot password?'), findsOneWidget);
+    if (useFirebaseAuth) {
+      expect(find.text('Continue with Google'), findsOneWidget);
+      expect(find.text('Forgot password?'), findsOneWidget);
+      expect(find.textContaining('Local runtime profile'), findsNothing);
+    } else {
+      expect(find.text('Open local demo workspace'), findsOneWidget);
+      expect(find.text('Forgot password?'), findsNothing);
+      expect(find.textContaining('Local runtime profile'), findsOneWidget);
+    }
     expect(find.byTooltip('Sync now'), findsNothing);
 
     await tester.tap(find.text('Sign up'));
@@ -978,6 +1019,61 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Delete account permanently?'), findsNothing);
+  });
+
+  test('account deletion keeps authentication when cloud cleanup fails',
+      () async {
+    final cleanupService = _FailingAccountDataCleanupService();
+    final container = _createTestContainer(
+      _signedInSession,
+      overrides: [
+        accountDataCleanupServiceProvider.overrideWithValue(cleanupService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(authSessionProvider.future);
+
+    await expectLater(
+      container
+          .read(accountManagementControllerProvider)
+          .deleteCurrentAccount(),
+      throwsStateError,
+    );
+
+    expect(cleanupService.callCount, 1);
+    final session =
+        await container.read(authRepositoryProvider).authStateChanges().first;
+    expect(session?.user.uid, _signedInSession.user.uid);
+  });
+
+  test('account deletion does not clean cloud data when preflight fails',
+      () async {
+    final cleanupService = _RecordingAccountDataCleanupService();
+    final container = _createTestContainer(
+      _signedInSession,
+      overrides: [
+        accountDeletionPreflightServiceProvider.overrideWithValue(
+          _FailingAccountDeletionPreflightService(),
+        ),
+        accountDataCleanupServiceProvider.overrideWithValue(cleanupService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(authSessionProvider.future);
+
+    await expectLater(
+      container
+          .read(accountManagementControllerProvider)
+          .deleteCurrentAccount(),
+      throwsStateError,
+    );
+
+    expect(cleanupService.callCount, 0);
+    final session =
+        await container.read(authRepositoryProvider).authStateChanges().first;
+    expect(session?.user.uid, _signedInSession.user.uid);
   });
 
   testWidgets('active workspace tap cycles views on navigation rail too',
@@ -2464,9 +2560,8 @@ void main() {
     container.read(boardTextQueryProvider.notifier).state = 'also-no-match';
     container.read(focusModeEnabledProvider.notifier).state = true;
     container.read(focusedItemIdProvider.notifier).state = 'a-3';
-    container.read(collapsedHierarchyItemIdsProvider.notifier).state = {
-      'board-1::g-1',
-    };
+    container.read(collapsedHierarchyItemIdsProvider.notifier).state =
+        <String>{};
 
     container
         .read(boardControllerProvider)
@@ -2530,6 +2625,113 @@ void main() {
 
     expect(container.read(focusedItemIdProvider), isNull);
     expect(container.read(selectedHierarchyItemIdProvider), isNull);
+  });
+
+  testWidgets(
+      'hierarchy collapse state survives view switches and workspace restart',
+      (WidgetTester tester) async {
+    final sharedPreferences = InMemoryHierarchyViewPreferencesRepository(
+      userId: _signedInSession.user.uid,
+    );
+    final firstContainer = _createTestContainer(
+      _signedInSession,
+      overrides: [
+        hierarchyViewPreferencesRepositoryProvider.overrideWithValue(
+          sharedPreferences,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(_buildAppWithContainer(firstContainer));
+    await tester.pumpAndSettle();
+    firstContainer
+        .read(boardControllerProvider)
+        .setPlanningView(BoardPlanningView.hierarchy);
+    await tester.pumpAndSettle();
+    firstContainer.read(selectedHierarchyItemIdProvider.notifier).state =
+        'board-1::g-1';
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Collapse this branch'));
+    await tester.pumpAndSettle();
+    expect(find.text('Core board + hierarchy UX'), findsNothing);
+    expect(
+      await sharedPreferences.loadCollapsedItemIds(),
+      contains('board-1::g-1'),
+    );
+
+    firstContainer
+        .read(boardControllerProvider)
+        .setPlanningView(BoardPlanningView.kanban);
+    await tester.pumpAndSettle();
+    firstContainer
+        .read(boardControllerProvider)
+        .setPlanningView(BoardPlanningView.hierarchy);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Core board + hierarchy UX'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    firstContainer.dispose();
+
+    final restoredContainer = _createTestContainer(
+      _signedInSession,
+      overrides: [
+        hierarchyViewPreferencesRepositoryProvider.overrideWithValue(
+          sharedPreferences,
+        ),
+      ],
+    );
+    addTearDown(restoredContainer.dispose);
+    await tester.pumpWidget(_buildAppWithContainer(restoredContainer));
+    await tester.pumpAndSettle();
+    restoredContainer
+        .read(boardControllerProvider)
+        .setPlanningView(BoardPlanningView.hierarchy);
+    await tester.pumpAndSettle();
+
+    expect(
+      restoredContainer.read(collapsedHierarchyItemIdsProvider),
+      contains('board-1::g-1'),
+    );
+    expect(find.text('Core board + hierarchy UX'), findsNothing);
+  });
+
+  testWidgets('hierarchy archived filter shows only archived items',
+      (WidgetTester tester) async {
+    final container = _createTestContainer(_signedInSession);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_buildAppWithContainer(container));
+    await tester.pumpAndSettle();
+
+    await container.read(boardControllerProvider).updateItem(
+          itemId: 'g-1',
+          archived: true,
+        );
+    await tester.pumpAndSettle();
+    expect(
+      container
+          .read(boardStreamProvider)
+          .valueOrNull!
+          .items
+          .firstWhere((item) => item.itemId == 'g-1')
+          .archived,
+      isTrue,
+    );
+    container.read(boardPlanningViewProvider.notifier).state =
+        BoardPlanningView.hierarchy;
+    container.read(showArchivedOnlyProvider.notifier).state = true;
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ship PlanDone MVP'), findsOneWidget);
+    expect(find.text('Core board + hierarchy UX'), findsNothing);
+
+    container.read(showArchivedOnlyProvider.notifier).state = false;
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ship PlanDone MVP'), findsNothing);
+    expect(find.text('Core board + hierarchy UX'), findsOneWidget);
   });
 
   testWidgets(
@@ -2740,6 +2942,12 @@ void main() {
 
   testWidgets('undo bar auto-dismisses and can be manually dismissed',
       (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 2.8125;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
     final container = _createTestContainer(_signedInSession);
     addTearDown(container.dispose);
 

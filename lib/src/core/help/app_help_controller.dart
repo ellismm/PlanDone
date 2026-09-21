@@ -1,12 +1,10 @@
-import 'dart:convert';
+import 'dart:async';
 
-import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../runtime/runtime_flags.dart';
 import '../../features/auth/presentation/auth_controller.dart';
-import '../../features/board/data/local/drift/board_database.dart';
 import '../../features/board/domain/models/board_calendar_preferences.dart';
 import '../../features/board/domain/models/board_insights.dart';
 import '../../features/board/domain/models/board_snapshot.dart';
@@ -14,6 +12,10 @@ import '../../features/board/domain/models/work_item.dart' as board_models;
 import '../../features/board/domain/models/work_item_type.dart';
 import '../../features/board/presentation/board_controller.dart';
 import 'app_help.dart';
+import 'app_help_preferences_repository.dart';
+import 'app_help_preferences_repository_factory.dart';
+
+export 'app_help_preferences_repository.dart';
 
 class AppHelpVisibleTarget {
   const AppHelpVisibleTarget({
@@ -43,89 +45,6 @@ class AppHelpVisibleTarget {
   }
 }
 
-abstract class AppHelpPreferencesRepository {
-  Future<AppHelpPreferences> load();
-  Future<AppHelpPreferences> save(AppHelpPreferences preferences);
-}
-
-class InMemoryAppHelpPreferencesRepository
-    implements AppHelpPreferencesRepository {
-  InMemoryAppHelpPreferencesRepository({required String userId})
-      : _userId = userId;
-
-  final String _userId;
-
-  static final Map<String, AppHelpPreferences> _byUser =
-      <String, AppHelpPreferences>{};
-
-  @override
-  Future<AppHelpPreferences> load() async {
-    return _byUser[_userId] ?? const AppHelpPreferences();
-  }
-
-  @override
-  Future<AppHelpPreferences> save(AppHelpPreferences preferences) async {
-    _byUser[_userId] = preferences;
-    return preferences;
-  }
-}
-
-class DriftAppHelpPreferencesRepository
-    implements AppHelpPreferencesRepository {
-  DriftAppHelpPreferencesRepository({
-    required BoardDatabase database,
-    required String userId,
-  })  : _database = database,
-        _storageKey = 'help_preferences_v1_${_sanitizeForKey(userId)}';
-
-  final BoardDatabase _database;
-  final String _storageKey;
-
-  static String _sanitizeForKey(String raw) {
-    return raw.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-  }
-
-  Future<void> _ensureSettingsTable() {
-    return _database.customStatement(
-      'CREATE TABLE IF NOT EXISTS app_settings ('
-      'key TEXT PRIMARY KEY NOT NULL, '
-      'value TEXT NOT NULL'
-      ')',
-    );
-  }
-
-  @override
-  Future<AppHelpPreferences> load() async {
-    await _ensureSettingsTable();
-    final rows = await _database.customSelect(
-      'SELECT value FROM app_settings WHERE key = ?',
-      variables: [drift.Variable(_storageKey)],
-    ).get();
-    final raw = rows.isEmpty ? null : rows.first.data['value'] as String?;
-    if (raw == null || raw.trim().isEmpty) {
-      return const AppHelpPreferences();
-    }
-
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map) {
-      return const AppHelpPreferences();
-    }
-    return AppHelpPreferences.fromMap(
-      decoded.map((key, value) => MapEntry('$key', value)),
-    );
-  }
-
-  @override
-  Future<AppHelpPreferences> save(AppHelpPreferences preferences) async {
-    await _ensureSettingsTable();
-    await _database.customStatement(
-      'INSERT OR REPLACE INTO app_settings(key, value) VALUES(?, ?)',
-      [_storageKey, jsonEncode(preferences.toMap())],
-    );
-    return preferences;
-  }
-}
-
 final appHelpModeEnabledProvider = StateProvider<bool>((ref) => false);
 
 final appHelpShowFloatingButtonProvider = StateProvider<bool>((ref) {
@@ -152,12 +71,10 @@ final appHelpVisibleTargetsProvider =
 final appHelpPreferencesRepositoryProvider =
     Provider<AppHelpPreferencesRepository>((ref) {
   final userId = ref.watch(boardScopeUserIdProvider);
-  if (useInMemoryLocalStore) {
-    return InMemoryAppHelpPreferencesRepository(userId: userId);
-  }
-  return DriftAppHelpPreferencesRepository(
-    database: ref.watch(boardDatabaseProvider) as BoardDatabase,
+  return createAppHelpPreferencesRepository(
+    database: ref.watch(boardDatabaseProvider),
     userId: userId,
+    useInMemoryLocalStore: useInMemoryLocalStore,
   );
 });
 
@@ -393,16 +310,21 @@ class AppHelpController {
         case 0:
           if (focusItem != null &&
               _itemHasHierarchyChildren(snapshot, focusItem)) {
-            _ref.read(collapsedHierarchyItemIdsProvider.notifier).state =
-                <String>{_hierarchyNodeKeyForItem(focusItem)};
+            unawaited(
+              boardController.setCollapsedHierarchyItemIds(
+                <String>{_hierarchyNodeKeyForItem(focusItem)},
+              ),
+            );
           } else {
-            _ref.read(collapsedHierarchyItemIdsProvider.notifier).state =
-                <String>{};
+            unawaited(
+              boardController.setCollapsedHierarchyItemIds(<String>{}),
+            );
           }
           return;
         case 1:
-          _ref.read(collapsedHierarchyItemIdsProvider.notifier).state =
-              <String>{};
+          unawaited(
+            boardController.setCollapsedHierarchyItemIds(<String>{}),
+          );
           return;
       }
     }

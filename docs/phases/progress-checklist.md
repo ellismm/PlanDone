@@ -99,12 +99,13 @@ Use this file as your execution tracker while prompting Cline phase-by-phase.
 
 ## Phase 9 — AI + Advanced Automation (Deferred)
 
-- [ ] AI adapter/service abstraction added
-- [ ] AI prompt -> structured hierarchy parser implemented
-- [ ] Draft/review/edit/approve flow implemented
-- [ ] Approved AI items inserted through local-first pipeline
-- [ ] AI safety/validation guardrails verified
-- [ ] Tests/docs updated for AI workflows
+- [x] AI adapter/service abstraction added
+- [x] AI prompt -> structured hierarchy parser implemented
+- [x] Draft/review/edit/approve flow implemented
+- [x] Approved AI items inserted through local-first pipeline
+- [x] AI safety/validation guardrails verified
+- [x] Tests/docs updated for AI workflows
+- [ ] Firebase AI Logic + App Check activated and live-provider smoke-tested
 - [ ] Phase 9 acceptance criteria confirmed
 
 ## Phase 10 — Quick Capture Inbox

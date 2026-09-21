@@ -49,9 +49,10 @@ void main() {
       ),
     );
 
+    final outboxQueue = InMemoryOutboxQueue();
     final repository = BoardBackupRepositoryImpl(
       localStore: localStore,
-      outboxQueue: InMemoryOutboxQueue(),
+      outboxQueue: outboxQueue,
       currentUserId: 'user-1',
       directoryProvider: () async => tempDir,
       clock: () => DateTime(2026, 3, 18, 10, 30),
@@ -86,6 +87,9 @@ void main() {
       importedRecurring.recurrence?.rootItemId,
       importedRecurring.itemId,
     );
+    final pending = await outboxQueue.listPending();
+    expect(pending.any((op) => op.entity == 'boardMember'), isTrue);
+    expect(pending.any((op) => op.entity == 'member'), isFalse);
   });
 
   test('import throws format exception for malformed backup files', () async {

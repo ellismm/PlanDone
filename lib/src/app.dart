@@ -14,6 +14,7 @@ import 'features/auth/domain/models/auth_user.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/board/presentation/board_controller.dart';
 import 'features/auth/presentation/auth_page.dart';
+import 'features/ai_planning/presentation/ai_planning_page.dart';
 import 'features/board/domain/models/board_scheduled_reminder.dart';
 import 'features/board/presentation/board_configuration_page.dart';
 import 'features/board/presentation/board_flow_page.dart';
@@ -71,6 +72,8 @@ class PlanDoneApp extends ConsumerWidget {
             const _AuthGuardedPage(child: BoardConfigurationPage()),
         AppRoutes.planning: (_) =>
             const _AuthGuardedPage(child: BoardPlanningEntryPage()),
+        AppRoutes.aiPlanning: (_) =>
+            const _AuthGuardedPage(child: AiPlanningPage()),
       },
     );
     final bindingName = WidgetsBinding.instance.runtimeType.toString();

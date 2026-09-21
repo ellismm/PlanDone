@@ -5,6 +5,7 @@ import '../../domain/repositories/board_backup_repository.dart';
 import '../../domain/repositories/board_calendar_preferences_repository.dart';
 import '../../domain/repositories/board_flow_preferences_repository.dart';
 import '../../domain/repositories/board_filter_preset_repository.dart';
+import '../../domain/repositories/hierarchy_view_preferences_repository.dart';
 import '../../domain/repositories/notification_preferences_repository.dart';
 import '../../domain/repositories/work_item_activity_repository.dart';
 import '../local/in_memory_local_board_store.dart';
@@ -14,6 +15,7 @@ import '../repositories/in_memory/board_backup_repository_web_stub.dart';
 import '../repositories/in_memory/board_calendar_preferences_repository_in_memory.dart';
 import '../repositories/in_memory/board_flow_preferences_repository_in_memory.dart';
 import '../repositories/in_memory/board_filter_preset_repository_in_memory.dart';
+import '../repositories/in_memory/hierarchy_view_preferences_repository_in_memory.dart';
 import '../repositories/in_memory/notification_preferences_repository_in_memory.dart';
 import '../repositories/in_memory/work_item_activity_repository_in_memory.dart';
 import 'storage_platform_interface.dart';
@@ -78,6 +80,14 @@ BoardFlowPreferencesRepository createBoardFlowPreferencesRepository({
   required bool useInMemoryLocalStore,
 }) {
   return InMemoryBoardFlowPreferencesRepository(userId: userId);
+}
+
+HierarchyViewPreferencesRepository createHierarchyViewPreferencesRepository({
+  required PlatformBoardDatabase database,
+  required String userId,
+  required bool useInMemoryLocalStore,
+}) {
+  return InMemoryHierarchyViewPreferencesRepository(userId: userId);
 }
 
 AutofillSettingsRepository createAutofillSettingsRepository({

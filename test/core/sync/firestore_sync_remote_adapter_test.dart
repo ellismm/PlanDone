@@ -66,6 +66,26 @@ void main() {
         .get();
     expect(ownerMember.exists, isTrue);
     expect(ownerMember.data()?['role'], 'owner');
+
+    await adapter.applyOperation(
+      _op(
+        id: 'op-board-create',
+        type: OutboxOperationType.create,
+        entity: 'board',
+        entityId: 'board-1',
+        payload: const {
+          'version': 1,
+          'boardId': 'board-1',
+          'name': 'Roadmap',
+          'ownerId': 'owner-1',
+          'createdAt': '2026-01-01T00:00:00.000Z',
+          'updatedAt': '2026-01-01T00:00:00.000Z',
+        },
+      ),
+    );
+    final replayedBoard =
+        await firestore.collection('boards').doc('board-1').get();
+    expect(replayedBoard.data()?['name'], 'Roadmap');
   });
 
   test('member op writes joinedAtEpochMillis', () async {

@@ -1,5 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
+import 'account_data_cleanup_service.dart';
+import '../runtime/app_bootstrap_state.dart';
 import '../runtime/runtime_flags.dart';
 import '../theme/theme_controller.dart';
 import '../../features/auth/presentation/auth_controller.dart';
@@ -35,6 +39,29 @@ final accountManagementControllerProvider =
   return AccountManagementController(ref);
 });
 
+final accountDataCleanupServiceProvider = Provider<AccountDataCleanupService>(
+  (ref) {
+    final bootstrapState = ref.watch(appBootstrapStateProvider);
+    if (useFirebaseAuth && bootstrapState.firebaseReady) {
+      return FirestoreAccountDataCleanupService(
+        firestore: FirebaseFirestore.instance,
+      );
+    }
+    return const NoopAccountDataCleanupService();
+  },
+);
+
+final accountDeletionPreflightServiceProvider =
+    Provider<AccountDeletionPreflightService>((ref) {
+  final bootstrapState = ref.watch(appBootstrapStateProvider);
+  if (useFirebaseAuth && bootstrapState.firebaseReady) {
+    return FirebaseAccountDeletionPreflightService(
+      firebaseAuth: FirebaseAuth.instance,
+    );
+  }
+  return const NoopAccountDeletionPreflightService();
+});
+
 class AccountManagementController {
   AccountManagementController(this._ref);
 
@@ -63,6 +90,12 @@ class AccountManagementController {
     final userId = session.user.uid;
     final databaseName = boardDatabaseNameForUser(userId);
     final boardDatabase = _ref.read(boardDatabaseProvider);
+    await _ref
+        .read(accountDeletionPreflightServiceProvider)
+        .requireRecentAuthentication();
+    await _ref
+        .read(accountDataCleanupServiceProvider)
+        .deleteCloudData(userId: userId);
     await _ref.read(authControllerProvider).deleteAccount();
     try {
       await boardDatabase.close();

@@ -9,18 +9,17 @@ Enable the real Android authentication flow in PlanDone:
 - password reset
 - fingerprint quick unlock after a prior successful sign-in
 
-## Runtime flags
+## Runtime profile
 
 Use the Android auth path with Firebase enabled:
 
 ```bash
 flutter run \
-  --dart-define=USE_IN_MEMORY_LOCAL_STORE=false \
-  --dart-define=USE_FIREBASE_AUTH=true \
-  --dart-define=USE_FIREBASE_SYNC=true
+  --dart-define-from-file=config/runtime/firebase.json
 ```
 
-`USE_FIREBASE_SYNC=true` is recommended for the normal Android profile, but the auth flow itself only requires `USE_FIREBASE_AUTH=true`.
+This named profile always enables Firebase Auth and Firestore sync together with
+persistent local storage. Inconsistent manual flag combinations are rejected.
 
 ## Firebase project setup
 
@@ -31,7 +30,9 @@ flutter run \
 4. Place it at:
    - `android/app/google-services.json`
 
-If this file is missing, PlanDone now falls back cleanly and shows a setup message instead of crashing during bootstrap.
+If this file is missing, the profile-aware Android build/deploy scripts stop
+with an actionable error. A direct Flutter run still shows a setup message
+instead of silently falling back to local authentication.
 
 ## Firebase Auth providers
 
@@ -107,7 +108,7 @@ If biometrics are unavailable on the device, the app hides the quick-unlock offe
 
 1. Confirm `android/app/google-services.json` exists.
 2. Enable Email/Password and Google in Firebase Auth.
-3. Run the app with `USE_FIREBASE_AUTH=true`.
+3. Run the app with `config/runtime/firebase.json`.
 4. Create a new account with email/password.
 5. Sign out and sign back in.
 6. Trigger `Forgot password`.

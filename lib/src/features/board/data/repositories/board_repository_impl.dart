@@ -580,6 +580,86 @@ class BoardRepositoryImpl implements BoardRepository {
   Future<List<Board>> listBoards() => _localStore.listBoards();
 
   @override
+  Future<int> enqueueOwnedBoardSnapshotsForSync() async {
+    final boards = await _localStore.listBoards();
+    final baseTime = DateTime.now();
+    var operationOffset = 0;
+    var boardCount = 0;
+
+    DateTime nextOperationTime() =>
+        baseTime.add(Duration(milliseconds: operationOffset++));
+
+    for (final board in boards) {
+      final snapshot = await _localStore.getBoard(board.boardId);
+      final currentMember = BoardPermissions.memberForUser(
+        snapshot,
+        currentUserId,
+      );
+      final isOwned = board.ownerId == currentUserId &&
+          currentMember?.role == BoardRole.owner &&
+          !BoardPermissions.isInvitePending(currentMember);
+      if (!isOwned) continue;
+
+      await _enqueue(
+        now: nextOperationTime(),
+        type: OutboxOperationType.create,
+        entity: 'board',
+        entityId: board.boardId,
+        boardId: board.boardId,
+        payload: _boardPayload(board),
+      );
+
+      final members = [...snapshot.members]
+        ..sort((a, b) => a.userId.compareTo(b.userId));
+      for (final member in members) {
+        await _enqueue(
+          now: nextOperationTime(),
+          type: OutboxOperationType.create,
+          entity: 'boardMember',
+          entityId: '${board.boardId}:${member.userId}',
+          boardId: board.boardId,
+          payload: {
+            'userId': member.userId,
+            'role': member.role.name,
+            'joinedAt': member.joinedAt.toIso8601String(),
+            'joinedAtEpochMillis': member.joinedAt.millisecondsSinceEpoch,
+          },
+        );
+      }
+
+      final columns = [...snapshot.columns]
+        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      for (final column in columns) {
+        await _enqueue(
+          now: nextOperationTime(),
+          type: OutboxOperationType.create,
+          entity: 'column',
+          entityId: column.columnId,
+          boardId: board.boardId,
+          payload: _columnPayload(column),
+        );
+      }
+
+      final items = [...snapshot.items]
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      for (final item in items) {
+        await _enqueue(
+          now: nextOperationTime(),
+          type: OutboxOperationType.create,
+          entity: 'workItem',
+          entityId: item.itemId,
+          boardId: board.boardId,
+          payload: _workItemPayload(item),
+        );
+      }
+
+      boardCount += 1;
+    }
+
+    return boardCount;
+  }
+
+  @override
   Future<Board> createBoard(String name) async {
     final board = await _localStore.createBoard(name);
     final now = DateTime.now();

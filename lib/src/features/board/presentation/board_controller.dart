@@ -24,6 +24,7 @@ import '../domain/models/board_reminder_alert.dart';
 import '../domain/models/board_scheduled_reminder.dart';
 import '../domain/models/board.dart';
 import '../domain/models/board_filter_preset.dart';
+import '../domain/models/board_failures.dart';
 import '../domain/models/board_member.dart';
 import '../domain/models/board_snapshot.dart';
 import '../domain/models/board_validation_settings.dart';
@@ -46,6 +47,7 @@ import '../domain/repositories/board_calendar_preferences_repository.dart';
 import '../domain/repositories/board_flow_preferences_repository.dart';
 import '../domain/repositories/board_filter_preset_repository.dart';
 import '../domain/repositories/board_repository.dart';
+import '../domain/repositories/hierarchy_view_preferences_repository.dart';
 import '../domain/repositories/notification_preferences_repository.dart';
 import '../domain/repositories/work_item_activity_repository.dart';
 import 'item_accent_colors.dart';
@@ -233,6 +235,23 @@ final boardHydrationBootstrapProvider = FutureProvider<void>((ref) async {
   await hydrator?.startForBoard(boardId);
 });
 
+final boardCatalogBootstrapProvider = FutureProvider<void>((ref) async {
+  if (useInMemoryLocalStore || !useFirebaseSync) {
+    return;
+  }
+
+  final userId = ref.watch(activeUserIdProvider);
+  if (userId == null) return;
+
+  final hydrator = ref.watch(firestoreBoardHydratorProvider);
+  try {
+    await hydrator?.discoverOwnedBoards(userId);
+  } catch (_) {
+    // Catalog recovery is best-effort. Offline or permission failures must not
+    // hide boards that are already available in the local-first database.
+  }
+});
+
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   return SyncEngine(
     outboxQueue: ref.watch(outboxQueueProvider),
@@ -335,7 +354,8 @@ final currentBoardIdProvider = StateProvider<String>((ref) {
   return defaultBoardId;
 });
 
-final boardsProvider = FutureProvider<List<Board>>((ref) {
+final boardsProvider = FutureProvider<List<Board>>((ref) async {
+  await ref.watch(boardCatalogBootstrapProvider.future);
   return ref.watch(boardRepositoryProvider).listBoards();
 });
 
@@ -461,7 +481,7 @@ final lastAutoFocusedDoingBoardIdProvider =
   return null;
 });
 final collapsedHierarchyItemIdsProvider = StateProvider<Set<String>>((ref) {
-  ref.watch(boardPlanningViewProvider);
+  ref.watch(boardScopeUserIdProvider);
   return <String>{};
 });
 final showOverdueOnlyProvider = StateProvider<bool>((ref) => false);
@@ -532,6 +552,24 @@ final boardFlowPreferencesProvider = FutureProvider<BoardFlowPreferences>((
 ) async {
   ref.watch(boardScopeUserIdProvider);
   return ref.watch(boardFlowPreferencesRepositoryProvider).load();
+});
+
+final hierarchyViewPreferencesRepositoryProvider =
+    Provider<HierarchyViewPreferencesRepository>((ref) {
+  final userId = ref.watch(boardScopeUserIdProvider);
+  return storage_platform.createHierarchyViewPreferencesRepository(
+    database: ref.watch(boardDatabaseProvider),
+    userId: userId,
+    useInMemoryLocalStore: useInMemoryLocalStore,
+  );
+});
+
+final hierarchyCollapsedItemIdsPreferencesProvider =
+    FutureProvider<Set<String>>((ref) async {
+  ref.watch(boardScopeUserIdProvider);
+  return ref
+      .watch(hierarchyViewPreferencesRepositoryProvider)
+      .loadCollapsedItemIds();
 });
 
 final autofillSettingsRepositoryProvider = Provider<AutofillSettingsRepository>(
@@ -979,7 +1017,7 @@ final boardControllerProvider = Provider<BoardController>((ref) {
 });
 
 class BoardController {
-  static const Duration undoWindow = Duration(seconds: 8);
+  static const Duration undoWindow = Duration(seconds: 15);
 
   BoardController(this._ref, this._repository);
 
@@ -1016,8 +1054,6 @@ class BoardController {
     _ref.read(focusedItemIdProvider.notifier).state = null;
     _ref.read(showOverdueOnlyProvider.notifier).state = false;
     _ref.read(showDueSoonOnlyProvider.notifier).state = false;
-    _ref.read(showArchivedOnlyProvider.notifier).state = false;
-    _ref.read(collapsedHierarchyItemIdsProvider.notifier).state = <String>{};
   }
 
   Future<void> createBoard(String name) async {
@@ -1219,13 +1255,13 @@ class BoardController {
   }
 
   Future<void> triageInboxItem({
+    required String fromBoardId,
     required String itemId,
     required String toBoardId,
     required String toColumnId,
     required WorkItemType type,
     String? parentId,
   }) async {
-    final fromBoardId = _ref.read(currentBoardIdProvider);
     await _repository.triageInboxItem(
       fromBoardId: fromBoardId,
       itemId: itemId,
@@ -1666,6 +1702,25 @@ class BoardController {
     _ref.invalidate(boardBackupsProvider);
   }
 
+  Future<SyncRunReport> repairCloudSyncFromLocalBoards() async {
+    final boardCount = await _repository.enqueueOwnedBoardSnapshotsForSync();
+    if (boardCount == 0) {
+      throw BoardPermissionDeniedException(
+        'No locally owned boards are available for cloud recovery.',
+      );
+    }
+    _ref.invalidate(pendingOutboxCountProvider);
+    _ref.invalidate(outboxStatusProvider);
+    final report = await syncNow(ignoreRetrySchedule: true);
+    if (report.failed > 0 || report.permissionDenied > 0) {
+      throw BoardValidationException(
+        'Cloud recovery was incomplete: ${report.failed} operation(s) failed '
+        'and ${report.permissionDenied} were denied.',
+      );
+    }
+    return report;
+  }
+
   Future<BoardFilterPreset> saveCurrentFilterPreset({
     required String name,
     String? presetId,
@@ -1804,6 +1859,22 @@ class BoardController {
         .save(preferences);
     _ref.invalidate(boardCalendarPreferencesProvider);
     return saved;
+  }
+
+  Future<Set<String>> setCollapsedHierarchyItemIds(
+    Set<String> itemIds,
+  ) async {
+    final normalized = Set<String>.unmodifiable(itemIds);
+    _ref.read(collapsedHierarchyItemIdsProvider.notifier).state = normalized;
+    try {
+      return await _ref
+          .read(hierarchyViewPreferencesRepositoryProvider)
+          .saveCollapsedItemIds(normalized);
+    } catch (_) {
+      // Keep the active view responsive even if local preference storage is
+      // temporarily unavailable. The next hierarchy action will retry.
+      return normalized;
+    }
   }
 
   Future<void> setCalendarSubview(BoardCalendarSubview subview) async {

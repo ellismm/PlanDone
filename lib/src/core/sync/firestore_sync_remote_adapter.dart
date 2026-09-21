@@ -76,6 +76,52 @@ class FirestoreSyncRemoteAdapter implements SyncRemoteAdapter {
     final boardId = _requiredString(op.payload, 'boardId');
     final doc = _boards.doc(boardId);
 
+    if (op.type == OutboxOperationType.create) {
+      final updatedAtMicros =
+          _updatedAtMicros(op.payload, fallback: op.createdAt);
+      final ownerId = _requiredString(op.payload, 'ownerId');
+      final ownerMemberDoc = _members(boardId).doc(ownerId);
+      final batch = _firestore.batch();
+
+      batch.set(
+        doc,
+        {
+          'boardId': boardId,
+          'name': _requiredString(op.payload, 'name'),
+          'ownerId': ownerId,
+          'createdAt':
+              op.payload['createdAt'] ?? op.createdAt.toUtc().toIso8601String(),
+          'updatedAt':
+              op.payload['updatedAt'] ?? op.createdAt.toUtc().toIso8601String(),
+          'updatedAtMicros': updatedAtMicros,
+          'lastWriterOpId': op.id,
+          'validationSettings': (op.payload['validationSettings'] as Map?)
+                  ?.cast<String, Object?>() ??
+              const <String, Object?>{},
+          'workflowSettings': (op.payload['workflowSettings'] as Map?)
+                  ?.cast<String, Object?>() ??
+              const <String, Object?>{},
+        },
+        SetOptions(merge: true),
+      );
+      batch.set(
+        ownerMemberDoc,
+        {
+          'boardId': boardId,
+          'userId': ownerId,
+          'role': 'owner',
+          'joinedAt':
+              op.payload['createdAt'] ?? op.createdAt.toUtc().toIso8601String(),
+          'joinedAtEpochMillis': op.createdAt.toUtc().millisecondsSinceEpoch,
+          'updatedAtMicros': updatedAtMicros,
+          'lastWriterOpId': op.id,
+        },
+        SetOptions(merge: true),
+      );
+      await batch.commit();
+      return;
+    }
+
     await _withIdempotency(
       boardId: boardId,
       operation: op,

@@ -11,6 +11,7 @@ import '../models/work_item_type.dart';
 abstract class BoardRepository {
   Future<List<Board>> listBoards();
   Future<Board> createBoard(String name);
+  Future<int> enqueueOwnedBoardSnapshotsForSync();
   Stream<BoardSnapshot> watchBoard(String boardId);
   Future<void> renameBoard({
     required String boardId,

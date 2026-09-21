@@ -8,6 +8,7 @@ import '../../../app_routes.dart';
 import '../../../core/help/app_help.dart';
 import '../../../core/help/app_help_controller.dart';
 import '../../../core/help/app_help_widgets.dart';
+import '../../../core/sync/sync_engine.dart';
 import '../../../core/account/account_management_controller.dart';
 import '../../../core/theme/plan_done_theme.dart';
 import '../../../core/theme/theme_controller.dart';
@@ -196,7 +197,11 @@ class BoardConfigurationPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'This also clears the local workspace data cached for this account on this device. Exported backup files are not deleted automatically.',
+                    'Owned boards and their cloud content will be deleted. Your access to shared boards will be removed, but content belonging to those boards will remain.',
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'The local workspace cache on this device will also be cleared. Exported backup files are not deleted automatically.',
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -418,155 +423,220 @@ class BoardConfigurationPage extends ConsumerWidget {
     WidgetRef ref, {
     required BoardSnapshot snapshot,
   }) async {
+    var isRecoveringCloudSync = false;
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (context) => Consumer(
-        builder: (context, ref, _) {
-          final backupsAsync = ref.watch(boardBackupsProvider);
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Backup & Restore',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Export the current board to app-managed JSON and restore a backup as a new board snapshot.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: () async {
-                      BoardBackupFile? exported;
-                      final ok = await _runGuardedAction(
-                        context,
-                        () async {
-                          exported = await ref
-                              .read(boardControllerProvider)
-                              .exportCurrentBoardBackup();
-                        },
-                      );
-                      if (!ok || exported == null || !context.mounted) return;
-                      _showActionFeedback(
-                        context,
-                        'Backup saved: ${exported!.fileName}',
-                      );
-                    },
-                    icon: const Icon(Icons.download_outlined),
-                    label: Text('Export "${snapshot.board.name}"'),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Saved backups',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Flexible(
-                    child: backupsAsync.when(
-                      data: (backups) {
-                        if (backups.isEmpty) {
-                          return const Center(
-                            child: Text('No backups saved yet.'),
-                          );
-                        }
-                        return ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: backups.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final backup = backups[index];
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(backup.boardName),
-                              subtitle: Text(
-                                'Saved ${_formatBackupTimestamp(backup.exportedAt)}',
-                              ),
-                              trailing: Wrap(
-                                spacing: 4,
-                                children: [
-                                  TextButton(
-                                    onPressed: () async {
-                                      final shouldRestore =
-                                          await _confirmDestructiveAction(
-                                        context,
-                                        title: 'Restore backup?',
-                                        message:
-                                            'Restore "${backup.boardName}" as a new board? This will not overwrite the current board.',
-                                        confirmLabel: 'Restore',
-                                      );
-                                      if (!shouldRestore) return;
-                                      final ok = await _runGuardedAction(
-                                        context,
-                                        () => ref
-                                            .read(boardControllerProvider)
-                                            .importBoardBackup(
-                                              backupPath: backup.path,
-                                            ),
-                                      );
-                                      if (ok && context.mounted) {
-                                        Navigator.of(context).pop();
-                                        _showActionFeedback(
-                                          context,
-                                          'Backup restored as a new board.',
-                                        );
-                                      }
-                                    },
-                                    child: const Text('Restore'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () async {
-                                      final shouldDelete =
-                                          await _confirmDestructiveAction(
-                                        context,
-                                        title: 'Delete backup?',
-                                        message:
-                                            'Delete the saved backup "${backup.fileName}"?',
-                                        confirmLabel: 'Delete',
-                                      );
-                                      if (!shouldDelete) return;
-                                      final ok = await _runGuardedAction(
-                                        context,
-                                        () => ref
-                                            .read(boardControllerProvider)
-                                            .deleteBoardBackup(
-                                              backupPath: backup.path,
-                                            ),
-                                      );
-                                      if (ok && context.mounted) {
-                                        _showActionFeedback(
-                                          context,
-                                          'Backup deleted.',
-                                        );
-                                      }
-                                    },
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      },
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      error: (error, _) => Center(
-                        child: Text('Unable to load backups: $error'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Consumer(
+          builder: (context, ref, _) {
+            final backupsAsync = ref.watch(boardBackupsProvider);
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Backup & Restore',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Export the current board to app-managed JSON and restore a backup as a new board snapshot.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: isRecoveringCloudSync
+                          ? null
+                          : () async {
+                              final shouldRepair =
+                                  await _confirmDestructiveAction(
+                                context,
+                                title: 'Recover cloud sync?',
+                                message:
+                                    'Upload all locally owned boards, columns, and items to Firebase using their existing IDs? Use this after migrating device-local data or when the remote copy is missing.',
+                                confirmLabel: 'Upload local data',
+                              );
+                              if (!shouldRepair || !context.mounted) return;
+                              setModalState(
+                                () => isRecoveringCloudSync = true,
+                              );
+                              SyncRunReport? report;
+                              bool ok;
+                              try {
+                                ok = await _runGuardedAction(
+                                  context,
+                                  () async {
+                                    report = await ref
+                                        .read(boardControllerProvider)
+                                        .repairCloudSyncFromLocalBoards();
+                                  },
+                                );
+                              } finally {
+                                if (context.mounted) {
+                                  setModalState(
+                                    () => isRecoveringCloudSync = false,
+                                  );
+                                }
+                              }
+                              if (!ok || report == null || !context.mounted) {
+                                return;
+                              }
+                              _showActionFeedback(
+                                context,
+                                'Cloud recovery synced ${report!.processed} local records.',
+                              );
+                            },
+                      icon: isRecoveringCloudSync
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.cloud_upload_outlined),
+                      label: Text(
+                        isRecoveringCloudSync
+                            ? 'Uploading local data...'
+                            : 'Recover cloud sync from local data',
                       ),
                     ),
-                  ),
-                ],
+                    if (isRecoveringCloudSync) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Keep PlanDone open. Large local workspaces can take a few minutes to upload.',
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: () async {
+                        BoardBackupFile? exported;
+                        final ok = await _runGuardedAction(
+                          context,
+                          () async {
+                            exported = await ref
+                                .read(boardControllerProvider)
+                                .exportCurrentBoardBackup();
+                          },
+                        );
+                        if (!ok || exported == null || !context.mounted) return;
+                        _showActionFeedback(
+                          context,
+                          'Backup saved: ${exported!.fileName}',
+                        );
+                      },
+                      icon: const Icon(Icons.download_outlined),
+                      label: Text('Export "${snapshot.board.name}"'),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Saved backups',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: backupsAsync.when(
+                        data: (backups) {
+                          if (backups.isEmpty) {
+                            return const Center(
+                              child: Text('No backups saved yet.'),
+                            );
+                          }
+                          return ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: backups.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final backup = backups[index];
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(backup.boardName),
+                                subtitle: Text(
+                                  'Saved ${_formatBackupTimestamp(backup.exportedAt)}',
+                                ),
+                                trailing: Wrap(
+                                  spacing: 4,
+                                  children: [
+                                    TextButton(
+                                      onPressed: () async {
+                                        final shouldRestore =
+                                            await _confirmDestructiveAction(
+                                          context,
+                                          title: 'Restore backup?',
+                                          message:
+                                              'Restore "${backup.boardName}" as a new board? This will not overwrite the current board.',
+                                          confirmLabel: 'Restore',
+                                        );
+                                        if (!shouldRestore) return;
+                                        final ok = await _runGuardedAction(
+                                          context,
+                                          () => ref
+                                              .read(boardControllerProvider)
+                                              .importBoardBackup(
+                                                backupPath: backup.path,
+                                              ),
+                                        );
+                                        if (ok && context.mounted) {
+                                          Navigator.of(context).pop();
+                                          _showActionFeedback(
+                                            context,
+                                            'Backup restored as a new board.',
+                                          );
+                                        }
+                                      },
+                                      child: const Text('Restore'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () async {
+                                        final shouldDelete =
+                                            await _confirmDestructiveAction(
+                                          context,
+                                          title: 'Delete backup?',
+                                          message:
+                                              'Delete the saved backup "${backup.fileName}"?',
+                                          confirmLabel: 'Delete',
+                                        );
+                                        if (!shouldDelete) return;
+                                        final ok = await _runGuardedAction(
+                                          context,
+                                          () => ref
+                                              .read(boardControllerProvider)
+                                              .deleteBoardBackup(
+                                                backupPath: backup.path,
+                                              ),
+                                        );
+                                        if (ok && context.mounted) {
+                                          _showActionFeedback(
+                                            context,
+                                            'Backup deleted.',
+                                          );
+                                        }
+                                      },
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        loading: () => const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                        error: (error, _) => Center(
+                          child: Text('Unable to load backups: $error'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -2321,7 +2391,7 @@ class BoardConfigurationPage extends ConsumerWidget {
                               ),
                             ),
                             subtitle: const Text(
-                              'Permanently delete this account and clear its local workspace cache on this device.',
+                              'Delete owned cloud data, leave shared boards, and clear this device’s local workspace cache.',
                             ),
                             onTap: () async {
                               final shouldDelete = await _confirmDeleteAccount(

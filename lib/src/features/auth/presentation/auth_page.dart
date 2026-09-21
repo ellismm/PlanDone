@@ -119,92 +119,18 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       });
       return;
     }
-    final resetEmailController = TextEditingController(
-      text: AuthInputPolicy.normalizeEmail(_emailController.text),
-    );
-    String? dialogError;
-    bool isSending = false;
-
     final sent = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Reset your password'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: resetEmailController,
-                    keyboardType: TextInputType.emailAddress,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  if (dialogError != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      dialogError!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSending
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: isSending
-                      ? null
-                      : () async {
-                          final emailError = AuthInputPolicy.validateEmail(
-                            resetEmailController.text,
-                          );
-                          if (emailError != null) {
-                            setDialogState(() => dialogError = emailError);
-                            return;
-                          }
-                          setDialogState(() {
-                            isSending = true;
-                            dialogError = null;
-                          });
-                          try {
-                            await ref
-                                .read(authControllerProvider)
-                                .sendPasswordResetEmail(
-                                  email: AuthInputPolicy.normalizeEmail(
-                                    resetEmailController.text,
-                                  ),
-                                );
-                            if (dialogContext.mounted) {
-                              Navigator.of(dialogContext).pop(true);
-                            }
-                          } catch (error) {
-                            setDialogState(() {
-                              isSending = false;
-                              dialogError = _messageFor(error);
-                            });
-                          }
-                        },
-                  child: Text(isSending ? 'Sending...' : 'Send reset email'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      barrierDismissible: false,
+      builder: (dialogContext) => _PasswordResetDialog(
+        initialEmail: AuthInputPolicy.normalizeEmail(_emailController.text),
+        sendResetEmail: (email) => ref
+            .read(authControllerProvider)
+            .sendPasswordResetEmail(email: email),
+        messageForError: _messageFor,
+      ),
     );
 
-    resetEmailController.dispose();
     if (sent == true && mounted) {
       setState(() {
         _error = null;
@@ -292,9 +218,13 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     final title = _mode == _AuthMode.signIn
         ? 'Sign in to PlanDone'
         : 'Create your PlanDone account';
-    final subtitle = _mode == _AuthMode.signIn
-        ? 'Use your email, password, or Google account to get back to work.'
-        : 'Create a real account with a display name, secure password, and optional Google sign-in.';
+    final subtitle = useFirebaseAuth
+        ? (_mode == _AuthMode.signIn
+            ? 'Use your email, password, or Google account to get back to work.'
+            : 'Create a Firebase account with a display name, secure password, and optional Google sign-in.')
+        : (_mode == _AuthMode.signIn
+            ? 'Unlock a profile stored only on this device. Local profiles do not use Firebase or cloud sync.'
+            : 'Create a device-local profile for offline development and personal testing.');
 
     return Scaffold(
       appBar: AppBar(
@@ -338,6 +268,17 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                               subtitle,
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
+                            if (!useFirebaseAuth) ...[
+                              const SizedBox(height: 12),
+                              const Card(
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text(
+                                    'Local runtime profile • Device only • No cloud account or sync',
+                                  ),
+                                ),
+                              ),
+                            ],
                             if (useFirebaseAuth &&
                                 !bootstrapState.firebaseReady) ...[
                               const SizedBox(height: 16),
@@ -421,7 +362,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                               onSubmitted: (_) =>
                                   _mode == _AuthMode.signIn ? _submit() : null,
                             ),
-                            if (_mode == _AuthMode.signIn) ...[
+                            if (_mode == _AuthMode.signIn &&
+                                useFirebaseAuth) ...[
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
@@ -463,7 +405,11 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                             OutlinedButton.icon(
                               onPressed: _isBusy ? null : _signInWithGoogle,
                               icon: const Icon(Icons.login),
-                              label: const Text('Continue with Google'),
+                              label: Text(
+                                useFirebaseAuth
+                                    ? 'Continue with Google'
+                                    : 'Open local demo workspace',
+                              ),
                             ),
                             if (_statusMessage != null) ...[
                               const SizedBox(height: 12),
@@ -499,6 +445,111 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _PasswordResetDialog extends StatefulWidget {
+  const _PasswordResetDialog({
+    required this.initialEmail,
+    required this.sendResetEmail,
+    required this.messageForError,
+  });
+
+  final String initialEmail;
+  final Future<void> Function(String email) sendResetEmail;
+  final String Function(Object error) messageForError;
+
+  @override
+  State<_PasswordResetDialog> createState() => _PasswordResetDialogState();
+}
+
+class _PasswordResetDialogState extends State<_PasswordResetDialog> {
+  late final TextEditingController _emailController;
+  String? _error;
+  bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final emailError = AuthInputPolicy.validateEmail(_emailController.text);
+    if (emailError != null) {
+      setState(() => _error = emailError);
+      return;
+    }
+    setState(() {
+      _isSending = true;
+      _error = null;
+    });
+    try {
+      await widget.sendResetEmail(
+        AuthInputPolicy.normalizeEmail(_emailController.text),
+      );
+      if (!mounted) return;
+      FocusScope.of(context).unfocus();
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isSending = false;
+        _error = widget.messageForError(error);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_isSending,
+      child: AlertDialog(
+        title: const Text('Reset your password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              autofocus: true,
+              enabled: !_isSending,
+              onSubmitted: _isSending ? null : (_) => _submit(),
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed:
+                _isSending ? null : () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: _isSending ? null : _submit,
+            child: Text(_isSending ? 'Sending...' : 'Send reset email'),
+          ),
+        ],
       ),
     );
   }

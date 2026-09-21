@@ -34,6 +34,9 @@ The project’s core promise is offline-first collaboration. That only becomes r
   - local write first
   - enqueue deterministic outbox operation
 - `SyncEngine` processes outbox in FIFO order and handles retries with persistence.
+- The workspace sync lifecycle bridge keeps a timer aligned with the earliest
+  `nextAttemptAt`, so exponential-backoff retries run automatically while the
+  app is active. App resume still forces an immediate recovery attempt.
 - `FirestoreSyncRemoteAdapter` applies operations to Firestore with:
   - operation idempotency markers (`boards/{boardId}/_appliedOps/{operationId}`)
   - LWW checks (`updatedAtMicros`) for v1 conflict behavior
@@ -65,6 +68,7 @@ Entity-specific required fields:
 |---|---|
 | Remote write fails (network/server) | Operation remains in queue; `attemptCount++`; `lastError`, `nextAttemptAt`, `lastAttemptAt` set |
 | Operation scheduled in future | Normal sync skips until `nextAttemptAt` |
+| Earliest `nextAttemptAt` arrives | Workspace retry scheduler starts a normal sync pass automatically |
 | Manual force sync | Runs with `ignoreRetrySchedule=true`, attempts immediately |
 | Duplicate operation replay | Adapter no-ops via `_appliedOps` marker |
 | Older write vs newer remote state | LWW skip via `updatedAtMicros` comparison |
@@ -75,7 +79,7 @@ Entity-specific required fields:
 - [x] Failed ops persist with retry metadata.
 - [x] Firestore collaborator-origin changes hydrate local state.
 - [x] Local DB/store remains UI source of truth.
-- [x] Tests cover success/failure/retry/force/hydration branches.
+- [x] Tests cover success/failure/retry scheduling/force/hydration branches.
 
 ## Suggested operation contract hardening
 

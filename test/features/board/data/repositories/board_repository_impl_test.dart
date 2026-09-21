@@ -34,6 +34,32 @@ void main() {
     expect(op.payload['name'], 'My Remote Board');
   });
 
+  test('cloud recovery queues board snapshots in dependency order', () async {
+    final localStore = InMemoryLocalBoardStore(currentUserId: 'user-1');
+    final outboxQueue = InMemoryOutboxQueue();
+    final repository = BoardRepositoryImpl(
+      localStore: localStore,
+      outboxQueue: outboxQueue,
+      currentUserId: 'user-1',
+    );
+
+    final boardCount = await repository.enqueueOwnedBoardSnapshotsForSync();
+    final pending = await outboxQueue.listPending();
+
+    expect(boardCount, 1);
+    expect(pending.first.entity, 'board');
+    expect(pending.first.entityId, 'board-1');
+    expect(pending.any((op) => op.entity == 'boardMember'), isTrue);
+    expect(pending.any((op) => op.entity == 'column'), isTrue);
+    expect(pending.any((op) => op.entity == 'workItem'), isTrue);
+    for (var index = 1; index < pending.length; index++) {
+      expect(
+        pending[index].createdAt.isAfter(pending[index - 1].createdAt),
+        isTrue,
+      );
+    }
+  });
+
   test('createInboxCapture creates inbox item and enqueues create op',
       () async {
     final localStore = InMemoryLocalBoardStore(currentUserId: 'user-1');

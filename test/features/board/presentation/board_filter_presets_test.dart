@@ -92,7 +92,7 @@ void main() {
     expect(presets.where((p) => p.presetId == saved.presetId), isEmpty);
   });
 
-  test('setPlanningView resets hierarchy mode to full-tree context', () {
+  test('setPlanningView resets filters but preserves hierarchy expansion', () {
     final container = buildContainer();
     addTearDown(container.dispose);
 
@@ -125,8 +125,8 @@ void main() {
     expect(container.read(focusedItemIdProvider), isNull);
     expect(container.read(showOverdueOnlyProvider), isFalse);
     expect(container.read(showDueSoonOnlyProvider), isFalse);
-    expect(container.read(showArchivedOnlyProvider), isFalse);
-    expect(container.read(collapsedHierarchyItemIdsProvider), isEmpty);
+    expect(container.read(showArchivedOnlyProvider), isTrue);
+    expect(container.read(collapsedHierarchyItemIdsProvider), {'g-1'});
   });
 
   test('clearFocusedItem clears focus selection and focus mode', () {

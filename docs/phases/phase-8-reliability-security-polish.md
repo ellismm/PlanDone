@@ -72,7 +72,7 @@ After navigation, workflow semantics, planning views, and cloud baseline improve
 | Area | Scenario | Coverage |
 | --- | --- | --- |
 | Reliability | Manual sync, queued retries, sync status reporting | `board_controller_sync_test.dart` + workspace sync banner/outbox sheet |
-| Reliability | Auto sync after resume / new pending ops | `_WorkspaceSyncLifecycleBridge` in workspace |
+| Reliability | Auto sync after resume, new pending ops, and elapsed retry backoff | `_WorkspaceSyncLifecycleBridge` + `SyncRetryScheduler` |
 | Reliability | Destructive-action guardrails | Confirmation prompts for bulk archive/unarchive and member removal |
 | Security | Admin cannot delete board | `firestore_rules_test.js` |
 | Security | Non-member cannot write `_appliedOps` | `firestore_rules_test.js` |
@@ -94,6 +94,7 @@ After navigation, workflow semantics, planning views, and cloud baseline improve
     - destructive confirmation for member removal
 - Tests:
   - `test/features/board/presentation/board_controller_sync_test.dart`
+  - `test/core/sync/sync_retry_scheduler_test.dart`
   - `test/firestore/firestore_rules_test.js` (expanded denied-path coverage)
   - `test/features/board/data/repositories/board_repository_performance_test.dart`
 - Docs:

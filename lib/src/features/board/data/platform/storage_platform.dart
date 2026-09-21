@@ -4,6 +4,7 @@ import '../../domain/repositories/board_backup_repository.dart';
 import '../../domain/repositories/board_calendar_preferences_repository.dart';
 import '../../domain/repositories/board_flow_preferences_repository.dart';
 import '../../domain/repositories/board_filter_preset_repository.dart';
+import '../../domain/repositories/hierarchy_view_preferences_repository.dart';
 import '../../domain/repositories/notification_preferences_repository.dart';
 import '../../domain/repositories/work_item_activity_repository.dart';
 import '../local/local_board_store.dart';
@@ -89,6 +90,18 @@ BoardFlowPreferencesRepository createBoardFlowPreferencesRepository({
   required bool useInMemoryLocalStore,
 }) {
   return impl.createBoardFlowPreferencesRepository(
+    database: database,
+    userId: userId,
+    useInMemoryLocalStore: useInMemoryLocalStore,
+  );
+}
+
+HierarchyViewPreferencesRepository createHierarchyViewPreferencesRepository({
+  required PlatformBoardDatabase database,
+  required String userId,
+  required bool useInMemoryLocalStore,
+}) {
+  return impl.createHierarchyViewPreferencesRepository(
     database: database,
     userId: userId,
     useInMemoryLocalStore: useInMemoryLocalStore,

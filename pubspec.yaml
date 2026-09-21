@@ -1,7 +1,7 @@
 name: plandone
 description: Personal planning, todo, and daily action flow app for PlanDone
 publish_to: "none"
-version: 0.1.0+2
+version: 0.1.0+14
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -14,13 +14,15 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.26
   path_provider: ^2.1.4
   path: ^1.9.0
-  firebase_core: ^3.8.0
-  firebase_auth: ^5.3.3
-  cloud_firestore: ^5.5.0
-  firebase_messaging: ^15.1.6
+  firebase_core: 4.13.0
+  firebase_auth: 6.5.7
+  cloud_firestore: 6.8.0
+  firebase_messaging: 16.5.0
   google_sign_in: ^6.2.2
   flutter_secure_storage: ^9.2.2
   local_auth: ^2.3.0
+  firebase_ai: 3.15.0
+  firebase_app_check: 0.4.6
 
 dev_dependencies:
   flutter_test:
@@ -28,7 +30,13 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   drift_dev: ^2.20.3
   build_runner: ^2.4.13
-  fake_cloud_firestore: ^3.1.0
+  fake_cloud_firestore: ^4.2.0
+
+# firebase_core_web 3.11.0 calls the Dart 3.12 Object?.isA API, while the
+# current Flutter 3.41 toolchain ships Dart 3.11. Keep the matching 3.10 web
+# implementation until the Flutter SDK is upgraded.
+dependency_overrides:
+  firebase_core_web: 3.10.0
 
 flutter:
   uses-material-design: true

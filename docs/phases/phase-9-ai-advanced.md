@@ -58,3 +58,64 @@ AI remains part of the long-term vision, but it should be introduced only after 
 - AI architecture and provider contract note.
 - Generated-schema and validation reference.
 - Phase-9 checklist completion summary.
+
+## Implementation status — 2026-08-26
+
+The human-controlled Phase 9 vertical slice is implemented:
+
+- `AiPlanningProvider` keeps generation swappable.
+- `FirebaseAiPlanningProvider` uses Firebase AI Logic with Firebase Auth and
+  App Check; no private model-provider secret is embedded in the APK.
+- `AiPlanningDraftParser` accepts only the documented JSON object and rejects
+  unknown fields, invalid types, duplicate/missing ids, oversized output,
+  invalid parent direction, and hierarchy cycles.
+- `AiPlanningPage` discloses what context is sent, keeps the response in memory,
+  and supports edit, remove, sibling-only arrow reordering, reparent, reject,
+  and explicit approval. Reordering moves a complete branch, preserves every
+  parent link, and carries the reviewed sibling order into the approved commit.
+- `AiPlanningCommitService` preflights board requirements, creates parents
+  before children, labels approved records `ai-assisted`, and writes through
+  `BoardRepository.createItem` so local persistence, activity history, and the
+  outbox remain the only mutation path.
+
+### Generated response contract
+
+The model returns one JSON object:
+
+```json
+{
+  "summary": "Why this breakdown is useful",
+  "items": [
+    {
+      "id": "stable-draft-id",
+      "title": "Concrete title",
+      "type": "goal|project|task|action",
+      "parentId": "optional-higher-level-draft-id",
+      "description": "optional guidance",
+      "tags": ["optional", "tags"],
+      "estimatedEffortMinutes": 30
+    }
+  ]
+}
+```
+
+Limits are enforced again in app code even though Firebase structured output
+also receives a schema: 2,000 prompt characters, 64 absolute draft items (the
+UI offers 12/24/32), 160-character titles, 1,200-character descriptions, eight
+tags per item, and no cyclic or downward parent relationship.
+
+### Activation status
+
+On 2026-08-26, `plandone-staging` was activated on the no-cost Gemini Developer
+API while remaining on the Spark plan. AI monitoring is off. Firebase AI Logic
+is App Check-enforced, and the Android app is registered with Play Integrity
+for the current off-Play signing certificate. The Firebase runtime profile now
+sets `USE_FIREBASE_AI=true`; the local profile remains disabled.
+
+The remaining acceptance gate is a real physical-device
+generation/review/reject/approve smoke pass. Any future production signing
+certificate must be registered before distributing that build.
+
+Automated validation on 2026-08-26: `flutter analyze` reported no issues,
+`flutter test` passed 224 tests with 10 skips, and the Firebase-profile Android
+release APK built successfully.

@@ -4,6 +4,7 @@ class AppRoutes {
   static const insights = '/insights';
   static const boardConfiguration = '/board-configuration';
   static const planning = '/planning';
+  static const aiPlanning = '/ai-planning';
 
   static const primary = [
     workspace,

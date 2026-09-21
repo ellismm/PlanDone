@@ -88,7 +88,14 @@ service cloud.firestore {
       return request.resource.data.boardId == boardId &&
           request.resource.data.userId == uid &&
           validRole(request.resource.data.role) &&
+          validOwnerRoleAssignment(boardId, uid) &&
           request.resource.data.joinedAtEpochMillis is int;
+    }
+
+    function validOwnerRoleAssignment(boardId, uid) {
+      return request.resource.data.role != 'owner' ||
+          (boardExists(boardId) && uid == ownerId(boardId)) ||
+          (boardExistsAfter(boardId) && uid == ownerIdAfter(boardId));
     }
 
     function validColumnData(boardId, columnId) {
@@ -140,6 +147,13 @@ service cloud.firestore {
           request.resource.data.joinedAtEpochMillis > 0;
     }
 
+    function ownerDeletesBoardWithMembership(boardId, uid) {
+      return signedIn() &&
+          request.auth.uid == uid &&
+          uid == ownerId(boardId) &&
+          !boardExistsAfter(boardId);
+    }
+
     function immutableBoardIdentity() {
       return request.resource.data.boardId == resource.data.boardId &&
           request.resource.data.ownerId == resource.data.ownerId;
@@ -171,7 +185,14 @@ service cloud.firestore {
     }
 
     match /boards/{boardId} {
-      allow read: if canReadBoard(boardId);
+      allow get: if canReadBoard(boardId);
+
+      // A signed-in owner may rebuild the local board catalog after an app
+      // reinstall by querying `ownerId == request.auth.uid`. Firestore proves
+      // that query constraint against resource.data; broad or cross-owner
+      // collection reads remain denied.
+      allow list: if signedIn() &&
+          resource.data.ownerId == request.auth.uid;
 
       allow create: if signedIn() &&
           validBoardData(boardId) &&
@@ -181,7 +202,9 @@ service cloud.firestore {
           validBoardData(boardId) &&
           immutableBoardIdentity();
 
-      allow delete: if canManageBoard(boardId) && requesterRole(boardId) == 'owner';
+      allow delete: if activeRequester(boardId) &&
+          request.auth.uid == ownerId(boardId) &&
+          requesterRole(boardId) == 'owner';
 
       match /members/{uid} {
         allow read: if canReadBoard(boardId) ||
@@ -194,7 +217,10 @@ service cloud.firestore {
             ownerRoleIsLocked(boardId, uid) &&
             (canManageMembers(boardId) || canAcceptOwnInvite(boardId, uid));
 
-        allow delete: if canManageMembers(boardId) && uid != ownerId(boardId);
+        allow delete: if
+            (canManageMembers(boardId) && uid != ownerId(boardId)) ||
+            (signedIn() && request.auth.uid == uid && uid != ownerId(boardId)) ||
+            ownerDeletesBoardWithMembership(boardId, uid);
       }
 
       match /columns/{columnId} {
@@ -218,8 +244,19 @@ service cloud.firestore {
                 (signedIn() &&
                     boardExistsAfter(boardId) &&
                     ownerIdAfter(boardId) == request.auth.uid));
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if activeRequester(boardId) &&
+            request.auth.uid == ownerId(boardId) &&
+            requesterRole(boardId) == 'owner';
       }
+    }
+
+    // Account deletion must be able to rediscover the signed-in user's own
+    // memberships after a reinstall. The matching query is constrained by
+    // `userId == request.auth.uid`; it does not expose other member records.
+    match /{documentPath=**}/members/{uid} {
+      allow list: if signedIn() &&
+          resource.data.userId == request.auth.uid;
     }
   }
 }
