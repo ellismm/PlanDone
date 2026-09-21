@@ -56,15 +56,16 @@ Results:
 - Static analysis reported no issues.
 - The Flutter suite passed 264 tests with 11 expected platform skips.
 - All 29 Firestore rules tests passed.
-- Android release `0.1.0 (14)` was built and distributed through Firebase App
-  Distribution on August 30, 2026.
+- Android release `0.1.0 (15)` was built and distributed through Firebase App
+  Distribution to `leveled.dev@gmail.com` on September 20, 2026 as the final
+  physical-device QA candidate.
 - The complete build-14 source was audited for credential-shaped content,
   committed as `ca9c3b3`, and pushed to `origin/main` on September 20, 2026.
 
 ## Remaining manual release gate
 
 The remaining honest gate is a **physical-device manual smoke pass** for the
-few interactions not yet directly confirmed on build 14:
+few interactions not yet directly confirmed on build 15:
 
 - Undo after a move or archive action
 - create, edit, move, and archive while offline, followed by online reconciliation

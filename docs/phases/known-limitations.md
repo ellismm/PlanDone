@@ -34,7 +34,7 @@ Current as of September 20, 2026.
 ## Collaboration and operations
 
 - The product is optimized for personal daily use first, not polished small-team rollout.
-- Build 14 still needs direct physical-device confirmation for Undo and the
+- Build 15 still needs direct physical-device confirmation for Undo and the
   complete offline create/edit/move/archive sequence before it is treated as
   the final MVP release candidate.
 - Automated analyze, Flutter tests, Firestore rules tests, and the Android

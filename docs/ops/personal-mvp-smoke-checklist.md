@@ -65,11 +65,22 @@ Use this checklist before calling a build ready for daily personal use.
 - [x] `npm run test:rules` passed on 2026-09-20 (29 passed), including
   owner-role escalation, account cleanup, membership discovery, and owner-only
   board deletion regression coverage.
-- [x] Firebase-profile `flutter build apk --release` passed on 2026-08-30.
+- [x] Firebase-profile `flutter build apk --release` passed on 2026-09-20.
 - [ ] Manual smoke completed without blocking issues.
 - [x] Any remaining issues are documented in [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-limitations.md).
 
 ## Validation log
+
+### 2026-09-20 — Tester build 0.1.0 (15)
+
+- A fresh Firebase-profile Android APK was built with application ID
+  `com.example.plandone`, version name `0.1.0`, and version code `15`.
+- Firebase App Distribution accepted the release and distributed it to
+  `leveled.dev@gmail.com` as the final physical-device QA candidate.
+- The released APK SHA-256 is
+  `6ff298f661b57aa319ff58962fe05c3cb980197f6a85d9102b4ffee53590b9e1`.
+- The remaining unchecked device interactions were included in the release
+  notes and remain open in this checklist.
 
 ### 2026-09-20 — Source-control and documentation closeout
 

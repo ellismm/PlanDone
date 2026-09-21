@@ -201,7 +201,7 @@ unit or widget tests.
 - [ ] End-to-end manual QA across offline/online transitions
 - [x] Security/rules test pass recorded
 - [x] `flutter test` clean pass
-- [x] Key docs reviewed and reconciled with build 14
+- [x] Key docs reviewed and reconciled with build 15
 - [x] Known limitations/backlog documented
 
 Supporting docs:

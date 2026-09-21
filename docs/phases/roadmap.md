@@ -75,7 +75,7 @@ Based on docs and implementation status, PlanDone has a strong technical base an
 17. Execute the personal MVP closeout pass for reminders, release readiness, backup/restore, and docs alignment.
 18. Complete Phase 9's physical-device acceptance pass after the personal MVP
     baseline is proven in daily use. Its controlled implementation is already
-    present in build 14.
+    present in build 15.
 
 ## 5. Go/no-go gates between phases
 
