@@ -74,8 +74,7 @@ Based on docs and implementation status, PlanDone has a strong technical base an
 16. Execute Phase 19 for deterministic smart autofill defaults.
 17. Execute the personal MVP closeout pass for reminders, release readiness, backup/restore, and docs alignment.
 18. Complete Phase 9's physical-device acceptance pass after the personal MVP
-    baseline is proven in daily use. Its controlled implementation is already
-    present in build 15.
+    baseline is proven in daily use. Completed on 2026-09-21 with build 15.
 
 ## 5. Go/no-go gates between phases
 
@@ -97,6 +96,7 @@ Based on docs and implementation status, PlanDone has a strong technical base an
 - **Gate to personal MVP closeout:** Phase 19 behavior is stable enough to harden release trust.
 - **Gate to Phase 9 acceptance:** The personal MVP baseline is stable in daily
   use and the complete AI review/approval flow passes under App Check.
+  Confirmed on 2026-09-21 with build 15.
 
 ## 6. Personal MVP closeout
 

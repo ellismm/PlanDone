@@ -15,7 +15,7 @@ Use this checklist before calling a build ready for daily personal use.
 - [x] Edit title/description/metadata and save.
 - [x] Move an item between columns.
 - [x] Archive and unarchive an item.
-- [ ] Use undo after a move or archive action.
+- [x] Use undo after a move or archive action.
 - [x] Open item details without entering edit mode.
 
 ## Quick capture and inbox triage
@@ -44,7 +44,7 @@ Use this checklist before calling a build ready for daily personal use.
 ## Offline and sync recovery
 
 - [x] Disable network.
-- [ ] Create, edit, move, and archive at least one item while offline.
+- [x] Create, edit, move, and archive at least one item while offline.
 - [x] Re-enable network.
 - [x] Trigger sync if needed.
 - [x] Confirm offline edits persist and reconcile cleanly.
@@ -57,6 +57,15 @@ Use this checklist before calling a build ready for daily personal use.
 - [x] Restore the backup.
 - [x] Confirm the restored board appears as a new board with hierarchy, metadata, and recurrence intact.
 
+## AI-assisted planning
+
+- [x] Generate a structured plan on a physical device under App Check.
+- [x] Confirm automatic placement reuses the named existing goal.
+- [x] Review the staged hierarchy before any board mutation.
+- [x] Reject a draft and confirm nothing is added.
+- [x] Generate again, approve explicitly, and confirm the reviewed hierarchy is added through the normal local-first pipeline.
+- [x] Confirm the inserted branch retains the existing goal's color.
+
 ## Final release decision
 
 - [x] `flutter analyze` passed on 2026-09-20 with no issues.
@@ -66,10 +75,37 @@ Use this checklist before calling a build ready for daily personal use.
   owner-role escalation, account cleanup, membership discovery, and owner-only
   board deletion regression coverage.
 - [x] Firebase-profile `flutter build apk --release` passed on 2026-09-20.
-- [ ] Manual smoke completed without blocking issues.
+- [x] Manual smoke completed without blocking issues.
 - [x] Any remaining issues are documented in [known-limitations.md](/home/messay/coding/own/PlanDone/docs/phases/known-limitations.md).
 
 ## Validation log
+
+### 2026-09-21 — Physical-device AI and offline acceptance
+
+- The complete Firebase AI Logic path passed on the Samsung SM-S938U1 using
+  tester build `0.1.0 (15)` with App Check enforced.
+- Automatic placement matched the existing `House maintenance` goal. The first
+  six-item draft was reviewed and rejected without changing board data. A
+  second six-item draft was explicitly approved and inserted as an existing
+  Goal -> Project -> Task -> Action branch using the goal's blue color.
+- The app was then denied network access at the Android package level without
+  disconnecting the device. It launched from local data and displayed its
+  recoverable sync-failure state.
+- While offline, a new Inbox item was created and a separate QA item was
+  renamed, moved to Doing, and archived. After network access was restored,
+  Retry cleared the failure banner, the outbox drained to zero, the Inbox item
+  remained present, and the renamed item appeared under the Archived filter in
+  its offline-selected Doing column.
+
+### 2026-09-21 — Physical-device archive Undo
+
+- Archive Undo passed directly on the Samsung SM-S938U1 using tester build
+  `0.1.0 (15)`.
+- The test item disappeared from the active workspace after Archive and
+  returned immediately after tapping Undo within the 15-second window.
+- A prior apparent failure was traced to observing the item through the
+  Archived filter rather than an application defect; repeating the flow with
+  the filter state controlled confirmed the restoration.
 
 ### 2026-09-20 — Tester build 0.1.0 (15)
 

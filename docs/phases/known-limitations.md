@@ -1,6 +1,6 @@
 # Known Limitations
 
-Current as of September 20, 2026.
+Current as of September 21, 2026.
 
 ## Notifications
 
@@ -34,18 +34,19 @@ Current as of September 20, 2026.
 ## Collaboration and operations
 
 - The product is optimized for personal daily use first, not polished small-team rollout.
-- Build 15 still needs direct physical-device confirmation for Undo and the
-  complete offline create/edit/move/archive sequence before it is treated as
-  the final MVP release candidate.
+- Build 15 completed its physical-device manual smoke pass, including archive
+  Undo, offline create/edit/move/archive with online reconciliation, and the
+  complete AI review/approval path under App Check.
 - Automated analyze, Flutter tests, Firestore rules tests, and the Android
-  build are clean, but they do not replace those device-only checks.
+  build are clean; the device-only checks are recorded in the personal MVP
+  smoke checklist.
 
 ## Operational constraints and deferred work
 
 - AI-assisted planning is enabled in the Firebase profile and live generation
-  has succeeded through Firebase AI Logic. Formal Phase 9 acceptance still
-  requires one recorded end-to-end generation/review/reject/approve pass on a
-  physical device under App Check.
+  has succeeded through Firebase AI Logic. Phase 9 acceptance was confirmed by
+  a recorded end-to-end generation/review/reject/approve pass on a physical
+  device under App Check on September 21, 2026.
 - AI availability and latency remain subject to free-tier quota and temporary
   model-capacity limits; the app fails safely without writing a draft.
 - automated backend push notification workflows

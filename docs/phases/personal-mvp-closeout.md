@@ -62,18 +62,21 @@ Results:
 - The complete build-14 source was audited for credential-shaped content,
   committed as `ca9c3b3`, and pushed to `origin/main` on September 20, 2026.
 
-## Remaining manual release gate
+## Physical-device release gate
 
-The remaining honest gate is a **physical-device manual smoke pass** for the
-few interactions not yet directly confirmed on build 15:
+The **physical-device manual smoke pass is complete** on tester build
+`0.1.0 (15)`. On September 21, 2026, the final open checks passed on the target
+Android device:
 
-- Undo after a move or archive action
-- create, edit, move, and archive while offline, followed by online reconciliation
-- the complete AI generation, review, reject, and approve path under App Check
+- archive Undo restored the item within the interaction window
+- create, edit, move, and archive all worked while offline, followed by clean
+  online reconciliation and an empty outbox
+- Firebase AI Logic generation, review, reject, regeneration, and explicit
+  approval passed under App Check
 
-Background/closed-app reminders, backup/restore, sign-in, recurrence, and a
-basic offline-to-online create/sync path have already passed on the target
-Android device.
+Background/closed-app reminders, backup/restore, sign-in, recurrence, quick
+capture, Inbox triage, and the broader workspace workflow had already passed.
+No blocking manual release gate remains for the personal MVP.
 
 Use [personal-mvp-smoke-checklist.md](/home/messay/coding/own/PlanDone/docs/ops/personal-mvp-smoke-checklist.md) before calling a build release-ready.
 

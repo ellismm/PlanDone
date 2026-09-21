@@ -112,9 +112,16 @@ is App Check-enforced, and the Android app is registered with Play Integrity
 for the current off-Play signing certificate. The Firebase runtime profile now
 sets `USE_FIREBASE_AI=true`; the local profile remains disabled.
 
-The remaining acceptance gate is a real physical-device
-generation/review/reject/approve smoke pass. Any future production signing
-certificate must be registered before distributing that build.
+Phase 9 acceptance was confirmed on 2026-09-21 with tester build `0.1.0 (15)`
+on the Samsung SM-S938U1. Under App Check, automatic placement matched the
+existing `House maintenance` goal; the first generated draft was reviewed and
+rejected without a board write; a second draft was explicitly approved and
+committed as a Goal -> Project -> Task -> Action branch through the normal
+local-first/outbox path. The branch reused the existing goal and its color.
+Both the primary `gemini-3.5-flash` model and the free
+`gemini-3.5-flash-lite` fallback produced valid drafts during the acceptance
+run. Any future production signing certificate must be registered before
+distributing that build.
 
 Automated validation on 2026-08-26: `flutter analyze` reported no issues,
 `flutter test` passed 224 tests with 10 skips, and the Firebase-profile Android

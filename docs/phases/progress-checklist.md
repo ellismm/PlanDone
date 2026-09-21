@@ -11,8 +11,8 @@ unit or widget tests.
 
 - [x] `flutter test` passes for the phase changes
 - [x] App builds successfully for Android
-- [ ] Latest code is deployed to physical device (`flutter run -d <physical_device_id>`)
-- [ ] Manual smoke-check of the phase flow on device completed
+- [x] Latest application build is deployed to a physical device (Firebase App Distribution build 15)
+- [x] Manual smoke-check of the phase flow on device completed
 
 ---
 
@@ -109,7 +109,7 @@ unit or widget tests.
 - [x] AI safety/validation guardrails verified
 - [x] Tests/docs updated for AI workflows
 - [x] Firebase AI Logic + App Check activated and live generation smoke-tested
-- [ ] Phase 9 acceptance criteria confirmed
+- [x] Phase 9 acceptance criteria confirmed
 
 ## Phase 10 — Quick Capture Inbox
 
@@ -198,7 +198,7 @@ unit or widget tests.
 
 ## Final Release Readiness
 
-- [ ] End-to-end manual QA across offline/online transitions
+- [x] End-to-end manual QA across offline/online transitions
 - [x] Security/rules test pass recorded
 - [x] `flutter test` clean pass
 - [x] Key docs reviewed and reconciled with build 15
